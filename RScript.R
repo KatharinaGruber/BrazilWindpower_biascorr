@@ -3,9 +3,11 @@
 # or here: https://globalwindatlas.info/
 
 # create an account for downloading MERRA-2 data: https://urs.earthdata.nasa.gov/home
+# login for downloading merra data
+name <- "..."
+password <- "..."
 
-# downlaod ONS data?
-# download INMET data?
+
 
 
 # base directory
@@ -42,9 +44,7 @@ source("C:/.../MERRA_data.R")
 # load functions
 source("C:/.../functions.R")
 
-# login for downloading merra data
-name <- "..."
-password <- "..."
+
 
 
 
@@ -76,13 +76,43 @@ library(fitdistrplus)
 library(zoo)
 
 
+##########################################################################################
+##### DOWNLOAD ONS DATA ##################################################################
+##########################################################################################
+# downlaod ONS data:
+# for this script data downloaded manually from http://ons.org.br/Paginas/resultados-da-operacao/historico-da-operacao/geracao_energia.aspx
+# to download select "Simples" on top and on the left
+# Selectione "Geração de Energia (GWh)"
+# Escala de tempo "Dia"
+# Subsistema, Estado and and Usina, the region to download
+# Tipo de Usina "Eólica"
+# and Período since 2006
+# then click on the graph and select download and the csv
+# data can also be downloaded automatically with ONSDownload Script, but only since 2015
+dironsdownload <- "C:/..."
+source(paste0(dironsdownload,"/ONSDownload.R"))
+
+
+##########################################################################################
+##### DOWNLOAD INMET DATA ################################################################
+##########################################################################################
+# directory where stations_meta_data.csv is stored
+dirinmetmeta <- "C:/..."
+# directory where download function for inmet are stored
+dirinmetdownload <- "C:/..."
+# connection fails often, therefore try again until it works
+class(x) <- "try-error"
+while(class(x)=="try-error"){
+  x <- try(source(paste0(dirinmetdownload,"/INMETDownload.R")),silent = TRUE)
+  stopCluster(cl)
+}
 
 
 
 
-
-
-##### DOWNLOAD OF MERRA DATA ####
+##########################################################################################
+##### DOWNLOAD OF MERRA DATA #############################################################
+##########################################################################################
 
 ####the boundary of the box to download
 ####
@@ -1789,7 +1819,7 @@ BSUBstats$area[which(BSUBstats$area=="S")] <- "South"
 ggplot(data=BSUBstats %>% filter(measure=="cor",sim!="obs"), aes(x=sim,y=val,group=sim,color=area)) +
   coord_cartesian(ylim=c(0.45,1)) +
   geom_jitter(lwd=3, width=0.2,height=0) +
-  scale_colour_manual(values=c("red","darkgreen","green")) +
+  scale_colour_manual(values=c("#c72321", "#0d8085", "#efc220")) +
   theme(legend.position = "bottom") +
   guides(color=guide_legend(nrow=rw,title="")) +
   xlab("Interpolation method") + 
@@ -1805,7 +1835,7 @@ ggplot(data=STATEstats %>% filter(measure=="cor",sim!="obs"), aes(x=sim,y=val,gr
   coord_cartesian(ylim=c(0.45,1)) +
   geom_boxplot() +
   geom_jitter(lwd=3, width=0.2,height=0) +
-  scale_colour_manual(values=c("darkgreen","green","darkblue","deepskyblue","darkred","orange","red")) +
+  scale_colour_manual(values=c("#c72321","#861719","#f0c320","#af8f19","#6e9b9e","#0d8085","#19484c")) +
   theme(legend.position = "bottom") +
   guides(color=guide_legend(nrow=rw,title="")) +
   xlab("Interpolation method") + 
@@ -1823,7 +1853,7 @@ ggplot(data=statstats %>% filter(measure=="cor",sim!="obs"), aes(x=sim,y=val,gro
   coord_cartesian(ylim=c(0.45,1)) +
   geom_boxplot() +
   geom_jitter(lwd=3, width=0.2,height=0) +
-  scale_colour_manual(values=c("darkgreen","green","darkblue","deepskyblue","darkred","orange","red")) +
+  scale_colour_manual(values=c("#c72321","#861719","#f0c320","#af8f19","#6e9b9e","#0d8085","#19484c")) +
   theme(legend.position = "bottom") +
   guides(color=guide_legend(nrow=rw,title="")) +
   xlab("Interpolation method") + 
@@ -1841,7 +1871,7 @@ BSUBstats_r$val[which(BSUBstats$measure!="cor")] <- BSUBstats_r$val[which(BSUBst
 ggplot(data=BSUBstats_r %>% filter(measure=="rmse",sim!="obs"), aes(x=sim,y=val,group=sim,color=area)) +
   coord_cartesian(ylim=c(0.1,0.35)) +
   geom_jitter(lwd=3, width=0.2,height=0) +
-  scale_colour_manual(values=c("red","darkgreen","green")) +
+  scale_colour_manual(values=c("#c72321", "#0d8085", "#efc220")) +
   theme(legend.position = "bottom") +
   guides(color=guide_legend(nrow=rw,title="")) +
   xlab("Interpolation method") + 
@@ -1857,7 +1887,7 @@ ggplot(data=STATEstats_r %>% filter(measure=="rmse",sim!="obs"), aes(x=sim,y=val
   coord_cartesian(ylim=c(0.1,0.35)) +
   geom_boxplot() +
   geom_jitter(lwd=3, width=0.2,height=0) +
-  scale_colour_manual(values=c("darkgreen","green","darkblue","deepskyblue","darkred","orange","red")) +
+  scale_colour_manual(values=c("#c72321","#861719","#f0c320","#af8f19","#6e9b9e","#0d8085","#19484c")) +
   theme(legend.position = "bottom") +
   guides(color=guide_legend(nrow=rw,title="")) +
   xlab("Interpolation method") + 
@@ -1871,7 +1901,7 @@ ggplot(data=statstats_r %>% filter(measure=="rmse",sim!="obs"), aes(x=sim,y=val,
   coord_cartesian(ylim=c(0.1,0.35)) +
   geom_boxplot() +
   geom_jitter(lwd=3, width=0.2,height=0) +
-  scale_colour_manual(values=c("darkgreen","green","darkblue","deepskyblue","darkred","orange","red")) +
+  scale_colour_manual(values=c("#c72321","#861719","#f0c320","#af8f19","#6e9b9e","#0d8085","#19484c")) +
   theme(legend.position = "bottom") +
   guides(color=guide_legend(nrow=rw,title="")) +
   xlab("Interpolation method") + 
@@ -1908,7 +1938,7 @@ BSUBstats_r$val[which(BSUBstats$measure!="cor")] <- BSUBstats_r$val[which(BSUBst
 ggplot(data=BSUBstats_r %>% filter(measure=="rmse",sim!="obs"), aes(x=sim,y=val,group=sim,color=area)) +
   coord_cartesian(ylim=c(0.1,0.5)) +
   geom_jitter(lwd=3, width=0.2,height=0) +
-  scale_colour_manual(values=c("red","darkgreen","green")) +
+  scale_colour_manual(values=c("#c72321", "#0d8085", "#efc220")) +
   theme(legend.position = "bottom") +
   guides(color=guide_legend(nrow=rw,title="")) +
   xlab("Wind speed mean approximation source") + 
@@ -1926,7 +1956,7 @@ ggplot(data=STATEstats_r %>% filter(measure=="rmse",sim!="obs"), aes(x=sim,y=val
   coord_cartesian(ylim=c(0.1,0.5)) +
   geom_boxplot() +
   geom_jitter(lwd=3, width=0.2,height=0) +
-  scale_colour_manual(values=c("darkgreen","green","darkblue","deepskyblue","darkred","orange","red")) +
+  scale_colour_manual(values=c("#c72321","#861719","#f0c320","#af8f19","#6e9b9e","#0d8085","#19484c")) +
   theme(legend.position = "bottom") +
   guides(color=guide_legend(nrow=rw,title="")) +
   xlab("Wind speed mean approximation source") + 
@@ -1949,7 +1979,7 @@ ggplot(data=statstats_r %>% filter(measure=="rmse",sim!="obs"), aes(x=sim,y=val,
   geom_boxplot() +
   geom_jitter(data = statstats_r2, lwd=3, width=0.2,height=0,shape=19) +
   geom_jitter(data = statstats_r1, lwd=3.5, width=0.2,height=0,shape=15) +
-  scale_colour_manual(values=c("darkgreen","green","darkblue","deepskyblue","darkred","orange","red")) +
+  scale_colour_manual(values=c("#c72321","#861719","#f0c320","#af8f19","#6e9b9e","#0d8085","#19484c")) +
   theme(legend.position = "bottom") +
   guides(color=guide_legend(nrow=rw,title="")) +
   xlab("Wind speed mean approximation source") + 
@@ -1963,7 +1993,7 @@ ggsave(paste0(dirresultscapc,"/pointplots/statrrmse_wsma.png"), width = w, heigh
 ggplot(data=BSUBstats_r %>% filter(measure=="mbe",sim!="obs"), aes(x=sim,y=val,group=sim,color=area)) +
   coord_cartesian(ylim=c(-0.5,0.45)) +
   geom_jitter(lwd=3, width=0.2,height=0) +
-  scale_colour_manual(values=c("red","darkgreen","green")) +
+  scale_colour_manual(values=c("#c72321", "#0d8085", "#efc220")) +
   theme(legend.position = "bottom") +
   guides(color=guide_legend(nrow=rw,title="")) +
   xlab("Wind speed mean approximation source") + 
@@ -1976,7 +2006,7 @@ ggplot(data=STATEstats_r %>% filter(measure=="mbe",sim!="obs"), aes(x=sim,y=val,
   coord_cartesian(ylim=c(-0.5,0.45)) +
   geom_boxplot() +
   geom_jitter(lwd=3, width=0.2,height=0) +
-  scale_colour_manual(values=c("darkgreen","green","darkblue","deepskyblue","darkred","orange","red")) +
+  scale_colour_manual(values=c("#c72321","#861719","#f0c320","#af8f19","#6e9b9e","#0d8085","#19484c")) +
   theme(legend.position = "bottom") +
   guides(color=guide_legend(nrow=rw,title="")) +
   xlab("Wind speed mean approximation source") + 
@@ -1992,7 +2022,7 @@ ggplot(data=statstats_r %>% filter(measure=="mbe",sim!="obs"), aes(x=sim,y=val,g
   geom_boxplot() +
   geom_jitter(data = statstats_r2, lwd=3, width=0.2,height=0,shape=19) +
   geom_jitter(data = statstats_r1, lwd=3.5, width=0.2,height=0,shape=15) +
-  scale_colour_manual(values=c("darkgreen","green","darkblue","deepskyblue","darkred","orange","red")) +
+  scale_colour_manual(values=c("#c72321","#861719","#f0c320","#af8f19","#6e9b9e","#0d8085","#19484c")) +
   theme(legend.position = "bottom") +
   guides(color=guide_legend(nrow=rw,title="")) +
   xlab("Wind speed mean approximation source") + 
@@ -2029,7 +2059,7 @@ ggplot(data=BSUBstats_r %>% filter(measure=="rmse",sim!="obs"), aes(x=sim,y=val,
   coord_cartesian(ylim=c(0.1,0.5)) +
   geom_jitter(data = BSUBstats_r1, lwd=3, width=0.2,height=0,shape=15) +
   geom_jitter(data = BSUBstats_r2, lwd=3.5, width=0.2,height=0,shape=19) +
-  scale_colour_manual(values=c("red","darkgreen","green")) +
+  scale_colour_manual(values=c("#c72321", "#0d8085", "#efc220")) +
   theme(legend.position = "bottom") +
   guides(color=guide_legend(nrow=rw,title="")) +
   xlab("Wind speed correction method") + 
@@ -2050,7 +2080,7 @@ ggplot(data=STATEstats_r %>% filter(measure=="rmse",sim!="obs"), aes(x=sim,y=val
   geom_boxplot() +
   geom_jitter(data = STATEstats_r1, lwd=3, width=0.2,height=0,shape=15) +
   geom_jitter(data = STATEstats_r2, lwd=3.5, width=0.2,height=0,shape=19) +
-  scale_colour_manual(values=c("darkgreen","green","darkblue","deepskyblue","darkred","orange","red")) +
+  scale_colour_manual(values=c("#c72321","#861719","#f0c320","#af8f19","#6e9b9e","#0d8085","#19484c")) +
   theme(legend.position = "bottom") +
   guides(color=guide_legend(nrow=rw,title="")) +
   xlab("Wind speed correction method") + 
@@ -2072,7 +2102,7 @@ ggplot(data=statstats_r %>% filter(measure=="rmse",sim!="obs"), aes(x=sim,y=val,
   geom_boxplot() +
   geom_jitter(data = statstats_r2, lwd=3, width=0.2,height=0,shape=15) +
   geom_jitter(data = statstats_r1, lwd=3.5, width=0.2,height=0,shape=19) +
-  scale_colour_manual(values=c("darkgreen","green","darkblue","deepskyblue","darkred","orange","red")) +
+  scale_colour_manual(values=c("#c72321","#861719","#f0c320","#af8f19","#6e9b9e","#0d8085","#19484c")) +
   theme(legend.position = "bottom") +
   guides(color=guide_legend(nrow=rw,title="")) +
   xlab("Wind speed correction method") + 
@@ -2091,7 +2121,7 @@ ggplot(data=BSUBstats_r %>% filter(measure=="mbe",sim!="obs"), aes(x=sim,y=val,g
   coord_cartesian(ylim=c(-0.4,0.6)) +
   geom_jitter(data = BSUBstats_r1, lwd=3, width=0.2,height=0,shape=15) +
   geom_jitter(data = BSUBstats_r2, lwd=3.5, width=0.2,height=0,shape=19) +
-  scale_colour_manual(values=c("red","darkgreen","green")) +
+  scale_colour_manual(values=c("#c72321", "#0d8085", "#efc220")) +
   theme(legend.position = "bottom") +
   guides(color=guide_legend(nrow=rw,title="")) +
   xlab("Wind speed correction method") + 
@@ -2107,7 +2137,7 @@ ggplot(data=STATEstats_r %>% filter(measure=="mbe",sim!="obs"), aes(x=sim,y=val,
   geom_boxplot() +
   geom_jitter(data = STATEstats_r1, lwd=3, width=0.2,height=0,shape=15) +
   geom_jitter(data = STATEstats_r2, lwd=3.5, width=0.2,height=0,shape=19) +
-  scale_colour_manual(values=c("darkgreen","green","darkblue","deepskyblue","darkred","orange","red")) +
+  scale_colour_manual(values=c("#c72321","#861719","#f0c320","#af8f19","#6e9b9e","#0d8085","#19484c")) +
   theme(legend.position = "bottom") +
   guides(color=guide_legend(nrow=rw,title="")) +
   xlab("Wind speed correction method") + 
@@ -2124,7 +2154,7 @@ ggplot(data=statstats_r %>% filter(measure=="mbe",sim!="obs"), aes(x=sim,y=val,g
   geom_boxplot() +
   geom_jitter(data = statstats_r2, lwd=3, width=0.2,height=0,shape=15) +
   geom_jitter(data = statstats_r1, lwd=3.5, width=0.2,height=0,shape=19) +
-  scale_colour_manual(values=c("darkgreen","green","darkblue","deepskyblue","darkred","orange","red")) +
+  scale_colour_manual(values=c("#c72321","#861719","#f0c320","#af8f19","#6e9b9e","#0d8085","#19484c")) +
   theme(legend.position = "bottom") +
   guides(color=guide_legend(nrow=rw,title="")) +
   xlab("Wind speed correction method") + 
