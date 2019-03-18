@@ -92,6 +92,11 @@ library(zoo)
 dironsdownload <- "C:/..."
 source(paste0(dironsdownload,"/ONSDownload.R"))
 
+# installed capacities per subsystem needed for capacity correction can be downloaded here:
+# http://ons.org.br/Paginas/resultados-da-operacao/historico-da-operacao/capacidade_instalada.aspx
+# select each subsystem and Tipo de Usina "Eólica"
+# and then data since 2006
+# then click on graph and then download as csv
 
 ##########################################################################################
 ##### DOWNLOAD INMET DATA ################################################################
