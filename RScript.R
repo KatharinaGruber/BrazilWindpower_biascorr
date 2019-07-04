@@ -283,16 +283,6 @@ save(cfB,cfNE,cfS,file=paste(dircaps,"/cap_cfs.RData",sep=""))
 ###################################################################################################################
 ############################### STEP 1: FIND BEST INTERPOLATION METHOD ############################################
 ###################################################################################################################
-### ENERCON E-82
-# datasheet (p7-10):http://www.enercon.de/fileadmin/Redakteur/Medien-Portal/broschueren/pdf/en/ENERCON_Produkt_en_06_2015.pdf
-# power 0 at 0 wind speed is added
-# selected rated power: 2000kW, selected height: 108m
-# power curve: windspeed [m/s] and power output [kW]
-ratedpower <- 2000
-height <- 108
-windspeed <- c(0:25)
-powercurve <- c(0,0,3,25,82,174,312,532,815,1180,1580,1810,1980,rep(2050,13))
-
 date.start <- as.POSIXct("2006-01-01",tz="UTC")
 rad <- pi/180
 LonLat <- read_feather(paste(dirmerra,"/lonlat.feather",sep=""))
@@ -300,17 +290,62 @@ LonLat <- read_feather(paste(dirmerra,"/lonlat.feather",sep=""))
 # basic simulation returns wind power per wind park
 # Nearest Neighbour
 intmethod=1
-statpowlist <- calcstatpower(ratedpower,height,windspeed,powercurve,intmethod)
+statpowlist <- calcstatpower(intmethod) # 33 sec
 setwd(dirresults)
 save(statpowlist,file="statpowlist_NN.RData")
+
+BRAp <- statpowlist[[1]]
+for(i in c(1:length(statpowlist))){
+  BRAp[,2] <- BRAp[,2]+statpowlist[[i]][,2]
+}
+BRAp[,2] <- BRAp[,2]/100 # wegen CF!!
+
+
+load("C:/Users/KatharinaG/Documents/paper_brasilien/results/statpowlist_NN.RData")
+BRAp_old <- statpowlist[[1]]
+for(i in c(1:length(statpowlist))){
+  BRAp_old[,2] <- BRAp_old[,2]+statpowlist[[i]][,2]
+}
+
+BRApower <- cbind(BRAp,BRAp_old[,2])
+names(BRApower) <- c("time","new","old")
+
+BRApower_tidy <- gather(BRApower,key = "sim",value = "WP",-time)
+
+ggplot(BRApower_tidy,aes(x=time,y=WP,color=sim,alpha=0.5)) + geom_line()
+
+BRAp_d <- aggregate(BRApower$new,by=list(format(BRApower$time,"%Y%m%d")),sum)
+BRAp_d$old <- aggregate(BRApower$old,by=list(format(BRApower$time,"%Y%m%d")),sum)[,2]
+names(BRAp_d) <- c("time","new","old")
+BRAp_d[,2:3] <- BRAp_d[,2:3]/10^6
+
+prod <- read.csv2("C:/Users/KatharinaG/andereDokumente/Masterarbeit2/daten/ONS/subs_bra/brasil_dia.csv")
+
+BRAp_d <- BRAp_d[which(BRAp_d$time>=20060328),]
+
+BRAp_d$obs <- prod[2:length(prod[,1]),8]
+
+
+BRAp_d_tidy <- gather(BRAp_d,key = "sim",value = "WP",-time)
+BRAp_d_tidy$time <- as.POSIXct(paste0(substr(BRAp_d_tidy$time,1,4),"-",substr(BRAp_d_tidy$time,5,6),"-",substr(BRAp_d_tidy$time,7,8)),tz="UTC")
+ggplot(BRAp_d_tidy,aes(x=time,y=WP,color=sim,alpha=0.5)) + geom_line()
+
+rmse(BRAp_d$new,BRAp_d$obs)
+rmse(BRAp_d$old,BRAp_d$obs)
+mean(BRAp_d$new-BRAp_d$obs)
+mean(BRAp_d$old-BRAp_d$obs)
+
+
 # Bilinear Interpolation
 intmethod=2
-statpowlist <- calcstatpower(ratedpower,height,windspeed,powercurve,intmethod)
+t1 = Sys.time()
+statpowlist <- calcstatpower(intmethod)
+print(Sys.time()-t1)
 setwd(dirresults)
 save(statpowlist,file="statpowlist_BLI.RData")
 # Inverse Distance Weighting
 intmethod=4
-statpowlist <- calcstatpower(ratedpower,height,windspeed,powercurve,intmethod)
+statpowlist <- calcstatpower(intmethod)
 setwd(dirresults)
 save(statpowlist,file="statpowlist_IDW.RData")
 
