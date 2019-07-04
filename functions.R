@@ -56,7 +56,7 @@ calcstatpower <- function(method,selection="all"){
     long <<- pplon
     lat <<- pplat
     lldo <<- distanceorder()
-    NNmer <- NNdf(method,windparks$hh[ind])
+    NNmer <- NNdf(method,108)
     
     # calculate power output for all hours from power curve in kWh
     # values are interpolated linearly betweer points of power curve
