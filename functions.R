@@ -35,17 +35,21 @@ calcstatpower <- function(method,selection="all"){
   nturb <- gsub("turbine","",nturb)
   nturb <- as.numeric(gsub("Turbine\\(s\\)","",nturb))
   windparks$n <- nturb
+  # fill in missing information with mean number of turbines
+  windparks$n[is.na(windparks$n)] <- mean(as.numeric(windparks$n),na.rm=TRUE)
   
   # add specific turbine power (in W, for using Ryberg power curve model)
   # see https://doi.org/10.1016/j.energy.2019.06.052
   windparks$sp <- windparks$tcap*1000/(windparks$diam^2/4*pi)
-  # fill in missing information with mean specific power
-  windparks$sp[is.na(windparks$sp)] <- mean(windparks$sp,na.rm=TRUE)
+  # fill in missing information with mean specific power weighted by number of turbines
+  ind_sp <- which(!is.na(windparks$sp))
+  windparks$sp[is.na(windparks$sp)] <- mean(windparks$sp[ind_sp]*windparks$n[ind_sp])/mean(windparks$n[ind_sp]) # difference is about 1.5 if not weigted by number of turbines
   
   # add hypothetical hubheight (is not included in dataset but linear function to estimate it from rotor diamter was fitted from US wind turbine database)
   windparks$hh <- 1.3566*windparks$diam - 18.686
-  # fill in missing values with mean hh
-  windparks$hh[is.na(windparks$hh)] <- mean(windparks$hh,na.rm=TRUE)
+  # fill in missing values with mean hh weighted by number of turbines
+  ind_hh <- which(!is.na(windparks$hh))
+  windparks$hh[is.na(windparks$hh)] <- mean(windparks$hh[ind_hh]*windparks$n[ind_hh])/mean(windparks$n[ind_hh]) # difference is about 1 if not weigted by number of turbines
   
   statpowlist <- list()
   
@@ -56,7 +60,7 @@ calcstatpower <- function(method,selection="all"){
     long <<- pplon
     lat <<- pplat
     lldo <<- distanceorder()
-    NNmer <- NNdf(method,108)
+    NNmer <- NNdf(method,windparks$hh[ind])
     
     # calculate power output for all hours from power curve in kWh
     # values are interpolated linearly betweer points of power curve
@@ -68,7 +72,7 @@ calcstatpower <- function(method,selection="all"){
                 RybCoeff$A,
                 RybCoeff$B)
     # calculate power output
-    statpower <- as.data.frame(approx(x=c(0,v,100),y=c(0,RybCoeff$CF,100)*windparks$cap[ind],xout=NNmer$vext))
+    statpower <- as.data.frame(approx(x=c(0,v,100),y=c(0,RybCoeff$CF/100,1)*windparks$cap[ind],xout=NNmer$vext))
     # set production before commissioning 0
     statpower$y[which(NNmer$date<windparks$comdate[ind])] <- 0
     
