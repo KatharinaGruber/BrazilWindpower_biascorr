@@ -41,15 +41,19 @@ calcstatpower <- function(method,selection="all"){
   # add specific turbine power (in W, for using Ryberg power curve model)
   # see https://doi.org/10.1016/j.energy.2019.06.052
   windparks$sp <- windparks$tcap*1000/(windparks$diam^2/4*pi)
-  # fill in missing information with mean specific power weighted by number of turbines
+  # fill in missing information with mean specific power weighted by number of turbines and year
   ind_sp <- which(!is.na(windparks$sp))
-  windparks$sp[is.na(windparks$sp)] <- mean(windparks$sp[ind_sp]*windparks$n[ind_sp])/mean(windparks$n[ind_sp]) # difference is about 1.5 if not weigted by number of turbines
+  yearly_sp <- aggregate((windparks$sp*windparks$n)[ind_sp],by=list(year(windparks$comdate)[ind_sp]),mean)
+  yearly_sp[,2] <- yearly_sp[,2]/aggregate(windparks$n[ind_sp],by=list(year(windparks$comdate)[ind_sp]),mean)[,2]
+  windparks$sp[is.na(windparks$sp)] <- yearly_sp[match(year(windparks$comdate),yearly_sp[,1])[is.na(windparks$sp)],2]
   
   # add hypothetical hubheight (is not included in dataset but linear function to estimate it from rotor diamter was fitted from US wind turbine database)
   windparks$hh <- 1.3566*windparks$diam - 18.686
-  # fill in missing values with mean hh weighted by number of turbines
+  # fill in missing values with mean hh weighted by number of turbines and year
   ind_hh <- which(!is.na(windparks$hh))
-  windparks$hh[is.na(windparks$hh)] <- mean(windparks$hh[ind_hh]*windparks$n[ind_hh])/mean(windparks$n[ind_hh]) # difference is about 1 if not weigted by number of turbines
+  yearly_hh <- aggregate((windparks$hh*windparks$n)[ind_hh],by=list(year(windparks$comdate)[ind_hh]),mean)
+  yearly_hh[,2] <- yearly_hh[,2]/aggregate(windparks$n[ind_hh],by=list(year(windparks$comdate)[ind_hh]),mean)[,2]
+  windparks$hh[is.na(windparks$hh)] <- yearly_hh[match(year(windparks$comdate),yearly_hh[,1])[is.na(windparks$hh)],2]
   
   statpowlist <- list()
   
