@@ -61,6 +61,8 @@ calcstatpower <- function(method,selection="all"){
     lat <<- pplat
     lldo <<- distanceorder()
     NNmer <- NNdf(method,windparks$hh[ind])
+    # cut-out wind speed: 25 m/s (-> set everything above to 0)
+    NNmer[which(NNmer[,2]>25),2] <- 0
     
     # calculate power output for all hours from power curve in kWh
     # values are interpolated linearly betweer points of power curve
