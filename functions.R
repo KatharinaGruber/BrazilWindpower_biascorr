@@ -6,15 +6,10 @@
 # function to calculate power generated in one location without using correction factors
 # method: interpolation method to use (1:NN,2:BLI,4:IDW, no BCI because useless)
 # selection: which wind parks to use? all or only selected (largest of each state)? ("all" or "sel")
-calcstatpower <- function(method,selection="all"){
+calcstatpower <- function(methods){
   # get data of windparks: capacities and start dates and sort by start dates for each location
-  if(selection=="all"){
-    load(paste(dirwindparks,"/windparks_complete.RData",sep=""))
-  }else{
-    load(paste(dirwindparks_sel,"/selected_windparks.RData",sep=""))
-    windparks=sel_windparks
-    rm(sel_windparks)
-  }
+  load(paste(dirwindparks_sel,"/selected_windparks.RData",sep=""))
+  
   windparks <- data.frame(windparks,comdate=as.POSIXct(paste(windparks$year,"-",windparks$month,"-",windparks$day," 00:00:00",sep=""),tz="UTC"))
   windparks <- windparks[which(windparks$comdate < as.POSIXct("2017-08-31 00:00:00",tz="UTC")),]
   windparks$comdate[which(windparks$comdate<date.start)] <- date.start
@@ -551,38 +546,62 @@ rmrows <- function(x,len,col){
 # function to calculate power generated in one location with mean wind speed approximation
 # parameters: rated power and height of used wind turbine as well as data for its power curve
 # method: interpolation method to use (1:NN,2:BLI,4:IDW, no BCI because useless)
-# selection: which wind parks to use? all or only selected (largest of each state)? ("all" or "sel")
 # wscdata: which data to use for wind speed correction? ("INMET" or "WINDATLAS")
-calcstatpower_meanAPT <- function(ratedpower,height,windspeed,powercurve,method=1,selection="all",wscdata,applylim=1){
+calcstatpower_meanAPT <- function(ratedpower,height,windspeed,powercurve,method=1,wscdata,applylim=1){
   # get data of windparks: capacities and start dates and sort by start dates for each location
-  if(selection=="all"){
-    load(paste(dirwindparks,"/windparks_complete.RData",sep=""))
-  }else{
-    load(paste(dirwindparks_sel,"/selected_windparks.RData",sep=""))
-    windparks=sel_windparks
-    rm(sel_windparks)
-  }
-  windparks <- windparks[order(windparks$long),]
+  load(paste(dirwindparks_sel,"/selected_windparks.RData",sep=""))
+  
   windparks <- data.frame(windparks,comdate=as.POSIXct(paste(windparks$year,"-",windparks$month,"-",windparks$day," 00:00:00",sep=""),tz="UTC"))
   windparks <- windparks[which(windparks$comdate < as.POSIXct("2017-08-31 00:00:00",tz="UTC")),]
   windparks$comdate[which(windparks$comdate<date.start)] <- date.start
-  numlon <- as.vector(unlist(rle(windparks$long)[1]))
-  # counter for locations
-  pp <- 1
+  # extract information on wind turbine type, rotor diameter, capacity of wind turbines, and number of installed turbines
+  # turbine type
+  ind_type <- which(!is.na(windparks$turbines))
+  windparks$type <- NA
+  windparks$type[ind_type] <- sapply(strsplit(sapply(strsplit(windparks$turbines[ind_type],":"),"[[",2),"[(]"),"[[",1)
+  # rotor diameter
+  ind_diam <- ind_cap <- which(unlist(lapply(strsplit(windparks$turbines,"power"),length))==2)
+  windparks$diam <- NA
+  windparks$diam[ind_diam] <- as.numeric(sapply(strsplit(sapply(strsplit(windparks$turbines[ind_diam],"diameter"),"[[",2),"m\\)"),"[[",1))
+  # capacity
+  windparks$tcap <- NA
+  windparks$tcap[ind_diam] <- as.numeric(sapply(strsplit(sapply(strsplit(windparks$turbines[ind_diam],"power"),"[[",2),"kW"),"[[",1))
+  # number of turbines
+  nturb <- gsub("turbines","",sapply(strsplit(windparks$turbines,":"),"[[",1))
+  nturb <- gsub("turbine","",nturb)
+  nturb <- as.numeric(gsub("Turbine\\(s\\)","",nturb))
+  windparks$n <- nturb
+  # fill in missing information with mean number of turbines
+  windparks$n[is.na(windparks$n)] <- mean(as.numeric(windparks$n),na.rm=TRUE)
+  
+  # add specific turbine power (in W, for using Ryberg power curve model)
+  # see https://doi.org/10.1016/j.energy.2019.06.052
+  windparks$sp <- windparks$tcap*1000/(windparks$diam^2/4*pi)
+  # fill in missing information with mean specific power weighted by number of turbines and year
+  ind_sp <- which(!is.na(windparks$sp))
+  yearly_sp <- aggregate((windparks$sp*windparks$n)[ind_sp],by=list(year(windparks$comdate)[ind_sp]),mean)
+  yearly_sp[,2] <- yearly_sp[,2]/aggregate(windparks$n[ind_sp],by=list(year(windparks$comdate)[ind_sp]),mean)[,2]
+  windparks$sp[is.na(windparks$sp)] <- yearly_sp[match(year(windparks$comdate),yearly_sp[,1])[is.na(windparks$sp)],2]
+  
+  # add hypothetical hubheight (is not included in dataset but linear function to estimate it from rotor diamter was fitted from US wind turbine database)
+  windparks$hh <- 1.3566*windparks$diam - 18.686
+  # fill in missing values with mean hh weighted by number of turbines and year
+  ind_hh <- which(!is.na(windparks$hh))
+  yearly_hh <- aggregate((windparks$hh*windparks$n)[ind_hh],by=list(year(windparks$comdate)[ind_hh]),mean)
+  yearly_hh[,2] <- yearly_hh[,2]/aggregate(windparks$n[ind_hh],by=list(year(windparks$comdate)[ind_hh]),mean)[,2]
+  windparks$hh[is.na(windparks$hh)] <- yearly_hh[match(year(windparks$comdate),yearly_hh[,1])[is.na(windparks$hh)],2]
+  
   statpowlist <- list()
-  powlistind <- 1
-  # list for saving correction factors
-  cfs_mean <<-list()
-  while(pp<=length(windparks$long)){
-    print(powlistind)
-    numstat <- numlon[powlistind]
-    pplon <- windparks$long[pp]
-    pplat <- windparks$lat[pp]
+  
+  for(ind in c(1:length(windparks[,1]))){
+    pplon <- windparks$long[ind]
+    pplat <- windparks$lat[ind]
     # find nearest neightbour MERRA and extrapolate to hubheight
     long <<- pplon
     lat <<- pplat
     lldo <<- distanceorder()
-    NNmer <- NNdf(method,height)
+    NNmer <- NNdf(method,windparks$hh[ind])
+    
     if(wscdata=="INMET"){
       
       ##########################################################
@@ -624,7 +643,7 @@ calcstatpower_meanAPT <- function(ratedpower,height,windspeed,powercurve,method=
       
       load(paste(dirwindatlas,"/wind_atlas.RData",sep=""))
       ppWAdistance <- 6378.388*acos(sin(rad*pplat) * sin(rad*windatlas[,2]) + cos(rad*pplat) * cos(rad*windatlas[,2]) * cos(rad*windatlas[,1]-rad*pplon))
-
+      
       # find data of nearest station
       pointn <- which(ppWAdistance==min(ppWAdistance))
       long <<- windatlas[pointn,1]
@@ -637,38 +656,30 @@ calcstatpower_meanAPT <- function(ratedpower,height,windspeed,powercurve,method=
       # adapt mean wind speed
       NNmer[,2] <- NNmer[,2]*cf
     }
-
-    # get startdates and capacities from municipios
-    capdate <- data.frame(windparks$comdate[pp:(pp+numstat-1)],windparks$cap[pp:(pp+numstat-1)],rep(NA,numstat))
-    names(capdate) <- c("commissioning","capacity","capacitysum")
-    capdate <- capdate[order(capdate$commissioning),]
-    capdate$capacitysum <- cumsum(capdate$capacity)
-    # make a list of capacities for all dates
-    caplist <- data.frame(NNmer[,1],rep(0,length(NNmer[,1])))
-    match <- match(capdate$commissioning,caplist[,1])
-    for(i in c(1:length(match))){
-      caplist[match[i]:length(caplist[,1]),2] <- capdate$capacitysum[i]
-    }
     
+    # cut-out wind speed: 25 m/s (-> set everything above to 0)
+    NNmer[which(NNmer[,2]>25),2] <- 0
     
     # calculate power output for all hours from power curve in kWh
     # values are interpolated linearly betweer points of power curve
-    whichs <- findInterval(NNmer[,2],windspeed)
-    whichs.1 <- whichs+1
-    whichs.1[which(whichs.1>length(powercurve))] <- length(powercurve)
-    statpower <- caplist[,2]/ratedpower*((powercurve[whichs]-powercurve[whichs.1])/(windspeed[whichs]-windspeed[whichs.1])*(NNmer[,2]-windspeed[whichs.1])+powercurve[whichs.1])
-    # replace NAs created where which is last element of powercurve with power of last element
-    # because powercurve becomes flat and no higher power is generated
-    statpower[which(whichs==length(powercurve))] <- caplist[which(whichs==length(powercurve)),2]/ratedpower*powercurve[length(powercurve)]
     
-    statpowlist[[powlistind]] <- data.frame(NNmer[,1],statpower)
+    # create power curve
+    RybCoeff <- read.csv(paste0(ryberg_path,"/ryberg_coeff_sel.csv"),sep=";")
+    names(RybCoeff) <- c("CF","A","B")
+    v <- mapply(function(A,B) exp(A+B*log(windparks$sp[ind])),
+                RybCoeff$A,
+                RybCoeff$B)
+    # calculate power output
+    statpower <- as.data.frame(approx(x=c(0,v,100),y=c(0,RybCoeff$CF/100,1)*windparks$cap[ind],xout=NNmer$vext))
+    # set production before commissioning 0
+    statpower$y[which(NNmer$date<windparks$comdate[ind])] <- 0
     
-    pp <- pp + numstat
-    powlistind <- powlistind +1
-    
+    # add to results
+    statpowlist[[ind]] <- data.frame(NNmer[,1],statpower$y)
   }
   
   return(statpowlist)
+  
 }
 
 # monthly correction
