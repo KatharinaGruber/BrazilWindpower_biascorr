@@ -66,7 +66,7 @@ calcstatpower <- function(method){
     # values are interpolated linearly betweer points of power curve
     
     # create power curve
-    RybCoeff <- read.csv(paste0(ryberg_path,"/ryberg_coeff_sel.csv"),sep=";")
+    RybCoeff <- read.csv(paste0(ryberg_path,"/ryberg_coeff.csv"),sep=",")
     names(RybCoeff) <- c("CF","A","B")
     v <- mapply(function(A,B) exp(A+B*log(windparks$sp[ind])),
                 RybCoeff$A,
@@ -118,10 +118,10 @@ calcstatpower_old <- function(method,type="E82"){
       windspeed <- c(0:25,100)
       powercurve <- c(0,0,3,25,82,174,312,532,815,1180,1580,1810,1980,rep(2050,13),2050)
     }else if(type=="SWT2.3"){
-      # Siemens SWT 2.3
+      # Siemens SWT 2.3 93
       ratedpower <- 2300
       windspeed <- c(0:25,100)
-      powercurve <- c(0,0,0,0,98,210,376,608,914,1312,1784,2164,2284,2299,rep(2300,12))
+      powercurve <- c(0,0,0,0,98,210,376,608,914,1312,1784,2164,2284,2299,rep(2300,13))
     }else if(type=="V80"){
       # Vestas V80
       ratedpower <- 1800
@@ -147,7 +147,48 @@ calcstatpower_old <- function(method,type="E82"){
 
 
 
+# function to calculate power generated in one location without using correction factors
+# method: interpolation method to use (1:NN,2:BLI,4:IDW, no BCI because useless)
+calcstatpower3h <- function(method){
+  # get data of windparks: capacities and start dates and sort by start dates for each location
+  load(paste(dirwindparks,"/windparks_complete.RData",sep=""))
+  
+  windparks <- data.frame(windparks,comdate=as.POSIXct(paste(windparks$year,"-",windparks$month,"-",windparks$day," 00:00:00",sep=""),tz="UTC"))
+  windparks <- windparks[which(windparks$comdate < as.POSIXct("2017-08-31 00:00:00",tz="UTC")),]
+  windparks$comdate[which(windparks$comdate<date.start)] <- date.start
+  
+  
+  statpowlist <- list()
+  
+  for(ind in c(1:length(windparks[,1]))){
+    pplon <- windparks$long[ind]
+    pplat <- windparks$lat[ind]
+    # find nearest neightbour MERRA and extrapolate to hubheight
+    long <<- pplon
+    lat <<- pplat
+    lldo <<- distanceorder()
+    NNmer <- NNdf3h(method,108)
+    
+    # calculate power output for all hours from power curve in kWh
+    # values are interpolated linearly betweer points of power curve
+    
+    # Enercon E82
+    ratedpower <- 2000
+    windspeed <- c(0:25,100)
+    powercurve <- c(0,0,3,25,82,174,312,532,815,1180,1580,1810,1980,rep(2050,13),2050)
 
+    
+    # calculate power output
+    statpower <- as.data.frame(approx(x=windspeed,y=powercurve*windparks$cap[ind]/ratedpower,xout=NNmer$vext))
+    # set production before commissioning 0
+    statpower$y[which(NNmer$date<windparks$comdate[ind])] <- 0
+    
+    # add to results
+    statpowlist[[ind]] <- data.frame(NNmer[,1],statpower$y)
+  }
+  
+  return(statpowlist)
+}
 
 
 
@@ -417,6 +458,267 @@ NNdf <- function(method,hubheight=10){
 }
 
 
+
+# Interpolation of MERRA wind speeds
+# extrapolation from three heights
+# returns a dataframe with nearest neighbour time, wind speeds and disph
+# method refers to the method of interpolation:
+# 1... nearest neighbour interpolation
+# 2... bilinear interpolation
+# 3... bicubic interpolation
+# 4... inverse weighting of distances
+NNdf3h <- function(method,hubheight=10){
+  setwd(dirmerra)
+  switch(method,
+         
+         {
+           ########## 1. Nearest Neighbour ##########
+           # first row (nearest neighbour) is extracted
+           # first column of list is taken (distance to station)
+           # and columns 4 to 27, long and lat are excluded
+           MRRdf <- getMerraPoint(lldo$Longitude[1],lldo$Latitude[1])
+           
+           # Wind speeds Nearest Neighbor
+           WHuv50 <- sqrt(MRRdf$U50M^2+MRRdf$V50M^2)
+           WHuv10 <- sqrt(MRRdf$U10M^2+MRRdf$V10M^2)
+           WHuv2 <- sqrt(MRRdf$U2M^2+MRRdf$V2M^2)
+           
+           # WH MERRA-DF
+           MWH <- data.frame(MRRdf$MerraDate,WHuv50,WHuv10,WHuv2,MRRdf$DISPH)
+           MWH1 <- MWH[which(MWH[,1]>=date.start),]
+           
+           MWH1ext <-data.frame(MWH1[,1],extrap3h(MWH1,hubheight))
+           names(MWH1ext) <- c("date","vext")
+           
+           return(MWH1ext)
+         },
+         
+         
+         {
+           ########## 2. Bilinear Interpolation ##########
+           # first row (nearest neighbour) is extracted
+           # three other neighbours in square around station are searched
+           # in case point lies between two points (on lon or lat line) only 2 points are used for calculation
+           # in case point lies exactly on Merra point, Nearest Neighbour method is used instead
+           MRRdfs <- list()
+           WHuv50 <- list()
+           WHuv10 <- list()
+           WHuv2 <- list()
+           WHuvext <- list()
+           #find coordinates of square points around station
+           lonNN <- lldo[1,1]
+           latNN <- lldo[1,2]
+           if((lonNN==long)&&(latNN==lat)){
+             ################################
+             # in case station is on MERRA point
+             ################################
+             #print(paste("Using NN Method for station",statn))
+             return(NNdf(1,hubheight))
+             
+           }else if(lonNN==long){
+             ################################
+             # in case station is on lon line
+             ################################
+             #print(paste("For station",statn,"interpolation only between lats"))
+             
+             if(latNN < lat){
+               lat1 <- latNN
+               lat2 <- latNN+0.5
+             }else{
+               lat2 <- latNN
+               lat1 <- latNN-0.5
+             }
+             
+             lats <- NULL
+             lons <- lonNN
+             lats[1] <- lldo$Latitude[first(which(as.numeric(as.factor(abs(lldo$Latitude-lat1)))==1))]
+             lats[2] <- lldo$Latitude[first(which(as.numeric(as.factor(abs(lldo$Latitude-lat2)))==1))]
+             
+             setwd(dirmerra)
+             MRRdfs[[1]] <- getMerraPoint(lons[1],lats[1])
+             MRRdfs[[2]] <- getMerraPoint(lons[2],lats[1])
+             
+             # calculation of coefficients
+             coeff1 <- (lats[2]-lat)/(lats[2]-lats[1])
+             coeff2 <- (lat-lats[1])/(lats[2]-lats[1])
+             
+             # wind speeds square
+             for(i in c(1:2)){
+               WHuv2[[i]] <- sqrt(MRRdfs[[i]]$U2M^2 + MRRdfs[[i]]$V2M^2)
+               WHuv10[[i]] <- sqrt(MRRdfs[[i]]$U10M^2 + MRRdfs[[i]]$V10M^2)
+               WHuv50[[i]] <- sqrt(MRRdfs[[i]]$U50M^2 + MRRdfs[[i]]$V50M^2)
+             }
+             
+             # extrapolation
+             for(i in c(1:2)){
+               WHuvext[[i]] <- extrap3h(data.frame(MRRdfs[[i]]$MerraDate,WHuv50[[i]],WHuv10[[i]],WHuv2[[i]],MRRdfs[[i]]$DISPH),hubheight)
+             }
+             
+             #interpolation
+             UVBLIext <- coeff1*WHuvext[[1]]+coeff2*WHuvext[[2]]
+             
+             
+           }else if(latNN==lat){
+             ################################
+             # in case station is on lat line
+             ################################
+             #print(paste("For station",statn,"interpolation only between lons"))
+             
+             if(lonNN < long){
+               lon1 <- lonNN
+               lon2 <- lonNN+0.625
+             }else{
+               lon2 <- lonNN
+               lon1 <- lonNN-0.625
+             }
+             
+             lats <- latNN
+             lons <- NULL
+             lons[1] <- lldo$Longitude[first(which(as.numeric(as.factor(abs(lldo$Longitude-lon1)))==1))]
+             lons[2] <- lldo$Longitude[first(which(as.numeric(as.factor(abs(lldo$Longitude-lon2)))==1))]
+             
+             setwd(dirmerra)
+             MRRdfs[[1]] <- getMerraPoint(lons[1],lats[1])
+             MRRdfs[[2]] <- getMerraPoint(lons[2],lats[1])
+             
+             # calculation of coefficients
+             coeff1 <- (lons[2]-long)/(lons[2]-lons[1])
+             coeff2 <- (long-lons[1])/(lons[2]-lons[1])
+             
+             # wind speeds square
+             for(i in c(1:2)){
+               WHuv2[[i]] <- sqrt(MRRdfs[[i]]$U2M^2 + MRRdfs[[i]]$V2M^2)
+               WHuv10[[i]] <- sqrt(MRRdfs[[i]]$U10M^2 + MRRdfs[[i]]$V10M^2)
+               WHuv50[[i]] <- sqrt(MRRdfs[[i]]$U50M^2 + MRRdfs[[i]]$V50M^2)
+             }
+             
+             # extrapolation
+             for(i in c(1:2)){
+               WHuvext[[i]] <- extrap3h(data.frame(MRRdfs[[i]]$MerraDate,WHuv50[[i]],WHuv10[[i]],WHuv2[[i]],MRRdfs[[i]]$DISPH),hubheight)
+             }
+             
+             #interpolation
+             UVBLIext <- coeff1*WHuvext[[1]]+coeff2*WHuvext[[2]]
+             
+           }else{
+             ################################
+             # in case station is inside square
+             ################################
+             if(lonNN < long){
+               lon1 <- lonNN
+               lon2 <- lonNN+0.625
+             }else{
+               lon2 <- lonNN
+               lon1 <- lonNN-0.625
+             }
+             if(latNN < lat){
+               lat1 <- latNN
+               lat2 <- latNN+0.5
+             }else{
+               lat2 <- latNN
+               lat1 <- latNN-0.5
+             }
+             
+             # get coordinates from LonLat because numeric problems...
+             lats <- NULL
+             lons <- NULL
+             lats[1] <- lldo$Latitude[first(which(as.numeric(as.factor(abs(lldo$Latitude-lat1)))==1))]
+             lats[2] <- lldo$Latitude[first(which(as.numeric(as.factor(abs(lldo$Latitude-lat2)))==1))]
+             lons[1] <- lldo$Longitude[first(which(as.numeric(as.factor(abs(lldo$Longitude-lon1)))==1))]
+             lons[2] <- lldo$Longitude[first(which(as.numeric(as.factor(abs(lldo$Longitude-lon2)))==1))]
+             
+             setwd(dirmerra)
+             MRRdfs[[1]] <- getMerraPoint(lons[1],lats[1])
+             MRRdfs[[2]] <- getMerraPoint(lons[1],lats[2])
+             MRRdfs[[3]] <- getMerraPoint(lons[2],lats[1])
+             MRRdfs[[4]] <- getMerraPoint(lons[2],lats[2])
+             
+             #calculation of coefficients for bilinear interpolation
+             coeff1 <- (lons[2]-long)/(lons[2]-lons[1])*(lats[2]-lat)/(lats[2]-lats[1])
+             coeff2 <- (lons[2]-long)/(lons[2]-lons[1])*(lat-lats[1])/(lats[2]-lats[1])
+             coeff3 <- (long-lons[1])/(lons[2]-lons[1])*(lats[2]-lat)/(lats[2]-lats[1])
+             coeff4 <- (long-lons[1])/(lons[2]-lons[1])*(lat-lats[1])/(lats[2]-lats[1])
+             
+             # wind speeds square
+             for(i in c(1:4)){
+               WHuv2[[i]] <- sqrt(MRRdfs[[i]]$U2M^2 + MRRdfs[[i]]$V2M^2)
+               WHuv10[[i]] <- sqrt(MRRdfs[[i]]$U10M^2 + MRRdfs[[i]]$V10M^2)
+               WHuv50[[i]] <- sqrt(MRRdfs[[i]]$U50M^2 + MRRdfs[[i]]$V50M^2)
+             }
+             
+             # extrapolation
+             for(i in c(1:4)){
+               WHuvext[[i]] <- extrap3h(data.frame(MRRdfs[[i]]$MerraDate,WHuv50[[i]],WHuv10[[i]],WHuv2[[i]],MRRdfs[[i]]$DISPH),hubheight)
+             }
+             
+             #interpolation
+             UVBLIext <- coeff1*WHuvext[[1]]+coeff2*WHuvext[[2]]+coeff3*WHuvext[[3]]+coeff4*WHuvext[[4]]
+             
+           }
+           
+           # WH MERRA-DF
+           MWH <- data.frame(MRRdfs[[1]]$MerraDate,UVBLIext)
+           MWH1 <- MWH[which(MWH[,1]>=date.start),]
+           names(MWH1) <- c("date","vext")
+           
+           return(MWH1)
+           
+         },
+         
+         {
+           ########## 3. Bicubic Interpolation ##########
+           # dismissed
+         },
+         {
+           ########## 4. Inverse Distance Weighting ##########
+           # first four rows (4 nearest neighbours) are extracted
+           # the inverse distances are calculated
+           # new velocities are found by weighting by the inverse distances
+           
+           
+           MRRdfs <- list()
+           WHuv50 <- list()
+           WHuv10 <- list()
+           WHuv2 <- list()
+           for(i in c(1:4)){
+             MRRdfs[[i]] <- getMerraPoint(lldo$Longitude[i],lldo$Latitude[i])
+           }
+           # Wind speeds 4 Neighbors Square
+           for(i in c(1:4)){
+             WHuv50[[i]] <- sqrt(MRRdfs[[i]]$U50M^2+MRRdfs[[i]]$V50M^2)
+             WHuv10[[i]] <- sqrt(MRRdfs[[i]]$U10M^2+MRRdfs[[i]]$V10M^2)
+             WHuv2[[i]] <- sqrt(MRRdfs[[i]]$U2M^2+MRRdfs[[i]]$V2M^2)
+           }
+           
+           # extrapolation
+           WHext <- list()
+           for(i in c(1:4)){
+             WHext[[i]] <- extrap3h(data.frame(MRRdfs[[1]]$MerraDate,WHuv50[[i]],WHuv10[[i]],WHuv2[[i]],MRRdfs[[i]]$DISPH),hubheight)
+           }
+           WHextdf <- as.data.frame(WHext)
+           names(WHextdf) <-c("v1","v2","v3","v4")
+           #calculation of coefficients for inverse distance weighting and interpolation
+           IDWcoeffs <- list()
+           distas <- c(lldo$distance[1],lldo$distance[2],lldo$distance[3],lldo$distance[4])
+           invdistasum <- sum(1/distas[1],1/distas[2],1/distas[3],1/distas[4])
+           for(i in c(1:4)){
+             IDWcoeffs[[i]] <- (1/(distas[i]))/(invdistasum)
+           }
+           coeffdf <- data.frame(matrix(rep(unlist(IDWcoeffs),each=length(WHextdf[,1])),nrow=length(WHextdf[,1]),ncol=4))
+           WHextIDW1 <- WHextdf*coeffdf
+           WHextIDW <- WHextIDW1[,1]+WHextIDW1[,2]+WHextIDW1[,3]+WHextIDW1[,4]
+           
+           MWH <-data.frame(MRRdfs[[1]]$MerraDate,WHextIDW)
+           MWH1 <- MWH[which(MWH[,1]>=date.start),]
+           names(MWH1) <- c("date","vext")
+           
+           
+           return(MWH1)
+           
+         })
+}
+
+
 #Extrapolation height
 #Height of INMET data: 10m
 extrap <- function(MWH1,hIN=10){
@@ -425,6 +727,26 @@ extrap <- function(MWH1,hIN=10){
   #wind speed with power law
   vext <- MWH1[,2]*(hIN/50)^alpha
   return(vext)
+}
+
+
+
+
+#Extrapolation height
+#like extrap, but instead of power law use log wind profile with logarithmic least squares fit
+extrap3h <- function(MWH1,hIN=10){
+  # solution of regression model v_z = a + b*log(h_z)
+  n <- 3
+  # b = (n * sum(v_j*log(h_j)) - sum(v_j) * sum(log(h_j))) / (n * sum((log(h_j))^2) - (sum(log(h_j)))^2)
+  b <- (n * (MWH1[,2]*log(50) + MWH1[,3]*log(10+MWH1[,5]) + MWH1[,4]*log(2+MWH1[,5])) - (MWH1[,2]+MWH1[,3]+MWH1[,4]) * (log(50)+log(10+MWH1[,5])+log(2+MWH1[,5]))) / (n * ((log(50))^2+(log(10+MWH1[,5]))^2+(log(2+MWH1[,5]))^2) - (log(50)+log(10+MWH1[,5])+log(2+MWH1[,5]))^2)
+  # a = (sum(v_j) - b*sum(log(h_j))) / n
+  a <- ((MWH1[,2]+MWH1[,3]+MWH1[,4]) - b * (log(2+MWH1[,5])+log(10+MWH1[,5])+log(50))) / n
+  #wind speed with power law
+  vext <- a + b*log(hIN)
+  
+  # some wind speeds are negtaive -> fill in with last positive wind speed
+  vext[which(vext<0)] <- NA
+  return(na.locf(vext))
 }
 
 
@@ -643,22 +965,64 @@ rmrows <- function(x,len,col){
 # wscdata: which data to use for wind speed correction? ("INMET" or "WINDATLAS")
 calcstatpower_meanAPT <- function(ratedpower,height,windspeed,powercurve,method=1,selection="all",wscdata,applylim=1){
   # get data of windparks: capacities and start dates and sort by start dates for each location
-  if(selection=="all"){
-    load(paste(dirwindparks,"/windparks_complete.RData",sep=""))
-  }else{
-    load(paste(dirwindparks_sel,"/selected_windparks.RData",sep=""))
-    windparks=sel_windparks
-    rm(sel_windparks)
-  }
-  windparks <- windparks[order(windparks$long),]
+  load(paste(dirwindparks,"/windparks_complete.RData",sep=""))
+  
   windparks <- data.frame(windparks,comdate=as.POSIXct(paste(windparks$year,"-",windparks$month,"-",windparks$day," 00:00:00",sep=""),tz="UTC"))
   windparks <- windparks[which(windparks$comdate < as.POSIXct("2017-08-31 00:00:00",tz="UTC")),]
   windparks$comdate[which(windparks$comdate<date.start)] <- date.start
-  numlon <- as.vector(unlist(rle(windparks$long)[1]))
-  # counter for locations
-  pp <- 1
+  
+  
   statpowlist <- list()
-  powlistind <- 1
+  
+  for(ind in c(1:length(windparks[,1]))){
+    pplon <- windparks$long[ind]
+    pplat <- windparks$lat[ind]
+    # find nearest neightbour MERRA and extrapolate to hubheight
+    long <<- pplon
+    lat <<- pplat
+    lldo <<- distanceorder()
+    NNmer <- NNdf(method,108)
+    
+    # calculate power output for all hours from power curve in kWh
+    # values are interpolated linearly betweer points of power curve
+    
+    # vary wind turbine type
+    if(type == "E82"){
+      # Enercon E82
+      ratedpower <- 2000
+      windspeed <- c(0:25,100)
+      powercurve <- c(0,0,3,25,82,174,312,532,815,1180,1580,1810,1980,rep(2050,13),2050)
+    }else if(type=="SWT2.3"){
+      # Siemens SWT 2.3 93
+      ratedpower <- 2300
+      windspeed <- c(0:25,100)
+      powercurve <- c(0,0,0,0,98,210,376,608,914,1312,1784,2164,2284,2299,rep(2300,13))
+    }else if(type=="V80"){
+      # Vestas V80
+      ratedpower <- 1800
+      windspeed <- c(0:25,100)
+      powercurve <- c(0,0,0,0,2,97,255,459,726,1004,1330,1627,1772,1797,rep(1082,10),rep(1080,3))
+    }else{
+      print("wrong turbine type")
+      return(NULL)
+    }
+    
+    # calculate power output
+    statpower <- as.data.frame(approx(x=windspeed,y=powercurve*windparks$cap[ind]/ratedpower,xout=NNmer$vext))
+    # set production before commissioning 0
+    statpower$y[which(NNmer$date<windparks$comdate[ind])] <- 0
+    
+    # add to results
+    statpowlist[[ind]] <- data.frame(NNmer[,1],statpower$y)
+  }
+  
+  return(statpowlist)
+  
+  
+  
+  
+  
+  
   # list for saving correction factors
   cfs_mean <<-list()
   while(pp<=length(windparks$long)){
@@ -758,6 +1122,133 @@ calcstatpower_meanAPT <- function(ratedpower,height,windspeed,powercurve,method=
   
   return(statpowlist)
 }
+
+
+
+# function to calculate power generated in one location with mean wind speed approximation
+# method: interpolation method to use (1:NN,2:BLI,4:IDW, no BCI because useless)
+# wscdata: which data to use for wind speed correction? ("INMET" or "WINDATLAS")
+# INMAXDIST: maximum distance to INMET station allowed for using it for correction
+calcstatpower_meanAPT_new <- function(method=1,wscdata,INMAXDIST){
+  # get data of windparks: capacities and start dates and sort by start dates for each location
+  if(selection=="all"){
+    load(paste(dirwindparks,"/windparks_complete.RData",sep=""))
+  }else{
+    load(paste(dirwindparks_sel,"/selected_windparks.RData",sep=""))
+    windparks=sel_windparks
+    rm(sel_windparks)
+  }
+  windparks <- windparks[order(windparks$long),]
+  windparks <- data.frame(windparks,comdate=as.POSIXct(paste(windparks$year,"-",windparks$month,"-",windparks$day," 00:00:00",sep=""),tz="UTC"))
+  windparks <- windparks[which(windparks$comdate < as.POSIXct("2017-08-31 00:00:00",tz="UTC")),]
+  windparks$comdate[which(windparks$comdate<date.start)] <- date.start
+  numlon <- as.vector(unlist(rle(windparks$long)[1]))
+  # counter for locations
+  pp <- 1
+  statpowlist <- list()
+  powlistind <- 1
+  # list for saving correction factors
+  cfs_mean <<-list()
+  while(pp<=length(windparks$long)){
+    print(powlistind)
+    numstat <- numlon[powlistind]
+    pplon <- windparks$long[pp]
+    pplat <- windparks$lat[pp]
+    # find nearest neightbour MERRA and extrapolate to hubheight
+    long <<- pplon
+    lat <<- pplat
+    lldo <<- distanceorder()
+    NNmer <- NNdf(method,height)
+    if(wscdata=="INMET"){
+      
+      ##########################################################
+      ##### INMET wind speed correction ########################
+      ##########################################################
+      
+      stations<-read.table(paste(dirinmetmeta,"/stations_meta_data.csv",sep=""),sep=";",header=T,stringsAsFactors=F)
+      # remove first and last two because they are not in Brasil
+      stations <- stations[2:(length(stations[,1])-2),]
+      # extract longitudes and latitudes
+      statlons <- stations$lon
+      statlats <- stations$lat
+      rm(stations)
+      ppINdistance <- 6378.388*acos(sin(rad*pplat) * sin(rad*statlats) + cos(rad*pplat) * cos(rad*statlats) * cos(rad*statlons-rad*pplon))
+      # only use if within maximum distance
+      if((min(ppINdistance)<INmaxdist)|applylim==0){
+        # find data of nearest station
+        statn <- which(ppINdistance==min(ppINdistance))
+        final_data <- readINMET(statn,date.start)
+        # get wind speed data of nearest MERRA point (global long and lat variables have changed in readINMET function)
+        lldo <<- distanceorder()
+        windMER10m <- NNdf(method,10)
+        wind_df <- data.frame(final_data$dates1,final_data$wind1,windMER10m[1:length(final_data$wind1),2])
+        wind_df <- na.omit(wind_df)
+        wind_df_r <- rmrows(wind_df,120,2)
+        cf <- mean(wind_df_r[,2])/mean(wind_df_r[,3])
+        cfs_mean[[powlistind]] <<- cf
+      }else{
+        cf <- 1
+        cfs_mean[[powlistind]] <<- 1
+      }
+      # adapt mean wind speed
+      NNmer[,2] <- NNmer[,2]*cf
+    }else{
+      
+      ##########################################################
+      ##### WIND ATLAS wind speed correction ###################
+      ##########################################################
+      
+      load(paste(dirwindatlas,"/wind_atlas.RData",sep=""))
+      ppWAdistance <- 6378.388*acos(sin(rad*pplat) * sin(rad*windatlas[,2]) + cos(rad*pplat) * cos(rad*windatlas[,2]) * cos(rad*windatlas[,1]-rad*pplon))
+      
+      # find data of nearest station
+      pointn <- which(ppWAdistance==min(ppWAdistance))
+      long <<- windatlas[pointn,1]
+      lat <<- windatlas[pointn,2]
+      # get wind speed data of nearest MERRA point (at 50m height! as wind atlas data)
+      lldo <<- distanceorder()
+      windMER50m <- NNdf(method,50)
+      cf <- as.numeric(windatlas[pointn,3])/mean(windMER50m[,2])
+      cfs_mean[[powlistind]] <<- cf
+      # adapt mean wind speed
+      NNmer[,2] <- NNmer[,2]*cf
+    }
+    
+    # get startdates and capacities from municipios
+    capdate <- data.frame(windparks$comdate[pp:(pp+numstat-1)],windparks$cap[pp:(pp+numstat-1)],rep(NA,numstat))
+    names(capdate) <- c("commissioning","capacity","capacitysum")
+    capdate <- capdate[order(capdate$commissioning),]
+    capdate$capacitysum <- cumsum(capdate$capacity)
+    # make a list of capacities for all dates
+    caplist <- data.frame(NNmer[,1],rep(0,length(NNmer[,1])))
+    match <- match(capdate$commissioning,caplist[,1])
+    for(i in c(1:length(match))){
+      caplist[match[i]:length(caplist[,1]),2] <- capdate$capacitysum[i]
+    }
+    
+    
+    # calculate power output for all hours from power curve in kWh
+    # values are interpolated linearly betweer points of power curve
+    whichs <- findInterval(NNmer[,2],windspeed)
+    whichs.1 <- whichs+1
+    whichs.1[which(whichs.1>length(powercurve))] <- length(powercurve)
+    statpower <- caplist[,2]/ratedpower*((powercurve[whichs]-powercurve[whichs.1])/(windspeed[whichs]-windspeed[whichs.1])*(NNmer[,2]-windspeed[whichs.1])+powercurve[whichs.1])
+    # replace NAs created where which is last element of powercurve with power of last element
+    # because powercurve becomes flat and no higher power is generated
+    statpower[which(whichs==length(powercurve))] <- caplist[which(whichs==length(powercurve)),2]/ratedpower*powercurve[length(powercurve)]
+    
+    statpowlist[[powlistind]] <- data.frame(NNmer[,1],statpower)
+    
+    pp <- pp + numstat
+    powlistind <- powlistind +1
+    
+  }
+  
+  return(statpowlist)
+}
+
+
+
 
 # monthly correction
 # function is given data frame with dates, INMET and MERRA wind speeds
