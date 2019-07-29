@@ -133,16 +133,6 @@ date_seq<-seq(as.POSIXct("1980-01-01",tz="UTC"),as.POSIXct("2017-08-31",tz="UTC"
 # if this happens, delete them and repeat the downlaod
 
 getMERRADataBox(lon1,lat1,lon2,lat2,
-                date_seq,c("U2M"),
-                name,
-                password,
-                TRUE)
-getMERRADataBox(lon1,lat1,lon2,lat2,
-                date_seq,c("V2M"),
-                name,
-                password,
-                TRUE)
-getMERRADataBox(lon1,lat1,lon2,lat2,
                 date_seq,c("U10M"),
                 name,
                 password,
@@ -173,8 +163,6 @@ date_seq<-list(seq(as.POSIXct("1980-01-01",tz="UTC"),as.POSIXct("1984-12-31",tz=
 setwd(dirmerrabase)
 
 # convert to feather format
-lapply(date_seq,convertMerraFeather,lon1,lat1,lon2,lat2,"U2M","U2m")
-lapply(date_seq,convertMerraFeather,lon1,lat1,lon2,lat2,"V2M","V2m")
 lapply(date_seq,convertMerraFeather,lon1,lat1,lon2,lat2,"U10M","U10m")
 lapply(date_seq,convertMerraFeather,lon1,lat1,lon2,lat2,"U50M","U50m")
 lapply(date_seq,convertMerraFeather,lon1,lat1,lon2,lat2,"V10M","V10m")
@@ -195,7 +183,7 @@ MerraDate <- read_feather(paste(dirmerra,"/MerraDate.feather",sep=""))
 LonLat <- read_feather(paste(dirmerra,"/lonlat.feather",sep=""))
 lonlat <- as.data.frame(LonLat)
 
-pnames <- c("U2M","V2M","U10M","U50M","V10M","V50M","DISPH")
+pnames <- c("U10M","U50M","V10M","V50M","DISPH")
 
 # change format from daily to point-wise files
 # split into chunks due to memory restrictions
@@ -203,7 +191,7 @@ divs <- divisors(length(lonlat[,1]))
 binsize <- max(divs[which(divs<400)])
 lll <- split(lonlat,f=rep(1:(length(lonlat[,1])/binsize),each=binsize))
 for(ll in lll){
-  invisible(apply(ll,1,saveMerraPointU2M,pnames2,lon1,lat1,lon2,lat2,date_seq))
+  invisible(apply(ll,1,saveMerraPoint,pnames2,lon1,lat1,lon2,lat2,date_seq))
 }
 
 
