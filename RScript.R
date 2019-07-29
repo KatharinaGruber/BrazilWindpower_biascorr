@@ -614,6 +614,14 @@ rm(statpowlist)
 
 
 ##### prepare results for Brazil, subsystems, states and wind parks #####
+load(paste0(dirresults,"/statpowlist_NN.RData"))
+statpowlistNN <- statpowlist
+load(paste0(dirresults,"/statpowlist_BLI.RData"))
+statpowlistBLI <- statpowlist
+load(paste0(dirresults,"/statpowlist_IDW.RData"))
+statpowlistIDW <- statpowlist
+rm(statpowlist)
+
 
 # sum up: Brazil
 BRA_NN <- sum_brasil(statpowlistNN)

@@ -695,7 +695,7 @@ sum_brasil <- function(complist){
 
 # make sum of wind power generation for subsystems NE and S
 sum_subsystem <- function(complist){
-  subs <- data.frame(states=c("Bahia","Ceará","Maranhão","Minas Gerais","Paraíba","Paraná","Pernambuco","Piaui","RiodeJaneiro","RioGrandedoNorte","RioGrandedoSul","SantaCatarina","Sergipe"),subsystem=c("NE","NE","NE","SE","NE","S","NE","NE","SE","NE","S","S","NE"))
+  subs <- data.frame(states=c("Bahia","Ceará","Maranhão","Minas Gerais","Paraíba","Paraná","Pernambuco","Piaui","RiodeJaneiro","RioGrandedoNorte","RioGrandedoSul","SantaCatarina","Sergipe"),subsystem=c("NE","NE","N","SE","NE","S","NE","NE","SE","NE","S","S","NE"))
   dfNE <- NULL
   dfS <- NULL
   for(i in which(subs[,2]=="NE")){
