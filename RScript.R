@@ -1499,10 +1499,6 @@ save(cfhm_r,cfm_r,corhm_r,corm_r,file=paste(dirresults,"/cfscors_r.RData",sep=""
 statpowlist <- calcstatpower_windcor(INmaxdist=40,corrlimit=0.5,method=1,mhm="hm",applylim=1)
 save(statpowlist,file=paste0(dirresults,"/statpowlist_wschm.RData")) # wschm = wind speed correction hourly and monthly
 
-# monthly
-statpowlist <- calcstatpower_windcor(INmaxdist=40,corrlimit=0.5,method=1,mhm="m",applylim=1)
-save(statpowlist,file=paste0(dirresults,"/statpowlist_wscm.RData")) # wscm = wind speed correction monthly
-
 
 
 
@@ -1516,51 +1512,38 @@ load(paste(dirresults,"/statpowlist_wsmaWA.RData",sep=""))
 statpowlist_wsma <- statpowlist
 load(paste(dirresults,"/statpowlist_wschm.RData",sep=""))
 statpowlist_wschm <- statpowlist
-load(paste(dirresults,"/statpowlist_wscm.RData",sep=""))
-statpowlist_wscm <- statpowlist
 rm(statpowlist)
 
 # sum up: Brazil
 BRA_wsma <- sum_brasil(statpowlist_wsma)
-BRA_wscm <- sum_brasil(statpowlist_wscm)
 BRA_wschm <- sum_brasil(statpowlist_wschm)
 # states:
 STA_wsma <- makeSTATEpowlist(statpowlist_wsma)
-STA_wscm <- makeSTATEpowlist(statpowlist_wscm)
 STA_wschm <- makeSTATEpowlist(statpowlist_wschm)
 # subsystems:
 SUB_wsma <- sum_subsystem(STA_wsma)
-SUB_wscm <- sum_subsystem(STA_wscm)
 SUB_wschm <- sum_subsystem(STA_wschm)
 # windparks:
 WPS_wsma <- makeWPpowlist(statpowlist_wsma)
-WPS_wscm <- makeWPpowlist(statpowlist_wscm)
 WPS_wschm <- makeWPpowlist(statpowlist_wschm)
 
 # aggregate daily
 # Brazil:
 BRA_wsmad <- dailyaggregate(list(BRA_wsma))[[1]]
-BRA_wscmd <- dailyaggregate(list(BRA_wscm))[[1]]
 BRA_wschmd <- dailyaggregate(list(BRA_wschm))[[1]]
 # states:
 STA_wsmad <- dailyaggregate(STA_wsma)
 names(STA_wsmad) <- gsub(" ","",names(STA_wsma))
-STA_wscmd <- dailyaggregate(STA_wscm)
-names(STA_wscmd) <- gsub(" ","",names(STA_wscm))
 STA_wschmd <- dailyaggregate(STA_wschm)
 names(STA_wschmd) <- gsub(" ","",names(STA_wschm))
 # subsystems:
 SUB_wsmad <- dailyaggregate(SUB_wsma)
 names(SUB_wsmad) <- names(SUB_wsma)
-SUB_wscmd <- dailyaggregate(SUB_wscm)
-names(SUB_wscmd) <- names(SUB_wscm)
 SUB_wschmd <- dailyaggregate(SUB_wschm)
 names(SUB_wschmd) <- names(SUB_wschm)
 # windparks:
 WPS_wsmad <- dailyaggregate(WPS_wsma)
 names(WPS_wsmad) <- names(WPS_wsma)
-WPS_wscmd <- dailyaggregate(WPS_wscm)
-names(WPS_wscmd) <- names(WPS_wscm)
 WPS_wschmd <- dailyaggregate(WPS_wschm)
 names(WPS_wschmd) <- names(WPS_wschm)
 
@@ -1581,16 +1564,13 @@ for(wps in names(WPS_wsma)){
 # cut to same lengths
 # Brazil:
 BRA_wsmadc <- csl(prodBRA,BRA_wsmad)
-BRA_wscmdc <- csl(prodBRA,BRA_wscmd)
 BRA_wschmdc <- csl(prodBRA,BRA_wschmd)
 # states:
 STA_wsmadc <- list()
-STA_wscmdc <- list()
 STA_wschmdc <- list()
 for(state in names(STA_wsmad)){
   if(!is.null(prodSTA[[state]])){
     STA_wsmadc[[state]] <- csl(prodSTA[[state]],STA_wsmad[[state]])
-    STA_wscmdc[[state]] <- csl(prodSTA[[state]],STA_wscmd[[state]])
     STA_wschmdc[[state]] <- csl(prodSTA[[state]],STA_wschmd[[state]])
   }
 }
@@ -1598,19 +1578,14 @@ for(state in names(STA_wsmad)){
 SUB_wsmadc <- list()
 SUB_wsmadc[["NE"]] <- csl(prodNE,SUB_wsmad$NE)
 SUB_wsmadc[["S"]] <- csl(prodS,SUB_wsmad$S)
-SUB_wscmdc <- list()
-SUB_wscmdc[["NE"]] <- csl(prodNE,SUB_wscmd$NE)
-SUB_wscmdc[["S"]] <- csl(prodS,SUB_wscmd$S)
 SUB_wschmdc <- list()
 SUB_wschmdc[["NE"]] <- csl(prodNE,SUB_wschmd$NE)
 SUB_wschmdc[["S"]] <- csl(prodS,SUB_wschmd$S)
 # windparks:
 WPS_wsmadc <- list()
-WPS_wscmdc <- list()
 WPS_wschmdc <- list()
 for(wps in names(WPS_wsmad)){
   WPS_wsmadc[[wps]] <- csl(prodWPS[[wps]],WPS_wsmad[[wps]])
-  WPS_wscmdc[[wps]] <- csl(prodWPS[[wps]],WPS_wscmd[[wps]])
   WPS_wschmdc[[wps]] <- csl(prodWPS[[wps]],WPS_wschmd[[wps]])
 }
 
@@ -1618,28 +1593,21 @@ for(wps in names(WPS_wsmad)){
 load(paste(dircaps,"/cap_cfs.RData",sep=""))
 # apply capacity correction factors and kWh -> GWh
 BRA_wsmadc[,3] <- BRA_wsmadc[,3]*cfB/10^6
-BRA_wscmdc[,3] <- BRA_wscmdc[,3]*cfB/10^6
 BRA_wschmdc[,3] <- BRA_wschmdc[,3]*cfB/10^6
 SUB_wsmadc[['NE']][,3] <- SUB_wsmadc[['NE']][,3]*cfNE/10^6
 SUB_wsmadc[['S']][,3] <- SUB_wsmadc[['S']][,3]*cfS/10^6
-SUB_wscmdc[['NE']][,3] <- SUB_wscmdc[['NE']][,3]*cfNE/10^6
-SUB_wscmdc[['S']][,3] <- SUB_wscmdc[['S']][,3]*cfS/10^6
 SUB_wschmdc[['NE']][,3] <- SUB_wschmdc[['NE']][,3]*cfNE/10^6
 SUB_wschmdc[['S']][,3] <- SUB_wschmdc[['S']][,3]*cfS/10^6
 # of states and stations last two are in S, others in NE
 for(i in c(1:(length(STA_wsmadc)-2))){
   STA_wsmadc[[i]][,3] <- STA_wsmadc[[i]][,3]*cfNE/10^6
   WPS_wsmadc[[i]][,3] <- WPS_wsmadc[[i]][,3]*cfNE/10^6
-  STA_wscmdc[[i]][,3] <- STA_wscmdc[[i]][,3]*cfNE/10^6
-  WPS_wscmdc[[i]][,3] <- WPS_wscmdc[[i]][,3]*cfNE/10^6
   STA_wschmdc[[i]][,3] <- STA_wschmdc[[i]][,3]*cfNE/10^6
   WPS_wschmdc[[i]][,3] <- WPS_wschmdc[[i]][,3]*cfNE/10^6
 }
 for(i in c((length(STA_wsmadc)-1):length(STA_wsmadc))){
   STA_wsmadc[[i]][,3] <- STA_wsmadc[[i]][,3]*cfS/10^6
   WPS_wsmadc[[i]][,3] <- WPS_wsmadc[[i]][,3]*cfS/10^6
-  STA_wscmdc[[i]][,3] <- STA_wscmdc[[i]][,3]*cfS/10^6
-  WPS_wscmdc[[i]][,3] <- WPS_wscmdc[[i]][,3]*cfS/10^6
   STA_wschmdc[[i]][,3] <- STA_wschmdc[[i]][,3]*cfS/10^6
   WPS_wschmdc[[i]][,3] <- WPS_wschmdc[[i]][,3]*cfS/10^6
 }
@@ -1647,17 +1615,12 @@ for(i in c((length(STA_wsmadc)-1):length(STA_wsmadc))){
 names(BRA_wsmadc) <- c("time","obs","sim")
 names(SUB_wsmadc[['NE']]) <- c("time","obs","sim")
 names(SUB_wsmadc[['S']]) <- c("time","obs","sim")
-names(BRA_wscmdc) <- c("time","obs","sim")
-names(SUB_wscmdc[['NE']]) <- c("time","obs","sim")
-names(SUB_wscmdc[['S']]) <- c("time","obs","sim")
 names(BRA_wschmdc) <- c("time","obs","sim")
 names(SUB_wschmdc[['NE']]) <- c("time","obs","sim")
 names(SUB_wschmdc[['S']]) <- c("time","obs","sim")
 for(i in c(1:7)){
   names(STA_wsmadc[[i]]) <- c("time","obs","sim")
   names(WPS_wsmadc[[i]]) <- c("time","obs","sim")
-  names(STA_wscmdc[[i]]) <- c("time","obs","sim")
-  names(WPS_wscmdc[[i]]) <- c("time","obs","sim")
   names(STA_wschmdc[[i]]) <- c("time","obs","sim")
   names(WPS_wschmdc[[i]]) <- c("time","obs","sim")
 }
@@ -1668,10 +1631,6 @@ comp_wsmad <- list()
 comp_wsmad[["Brazil"]] <- BRA_wsmadc
 comp_wsmad[["North-East"]] <- SUB_wsmadc[["NE"]]
 comp_wsmad[["South"]] <- SUB_wsmadc[["S"]]
-comp_wscmd <- list()
-comp_wscmd[["Brazil"]] <- BRA_wscmdc
-comp_wscmd[["North-East"]] <- SUB_wscmdc[["NE"]]
-comp_wscmd[["South"]] <- SUB_wscmdc[["S"]]
 comp_wschmd <- list()
 comp_wschmd[["Brazil"]] <- BRA_wschmdc
 comp_wschmd[["North-East"]] <- SUB_wschmdc[["NE"]]
@@ -1679,19 +1638,16 @@ comp_wschmd[["South"]] <- SUB_wschmdc[["S"]]
 for(i in c(1:7)){
   comp_wsmad[[names(STA_wsmadc)[i]]] <- STA_wsmadc[[i]]
   comp_wsmad[[names(WPS_wsmadc)[i]]] <- WPS_wsmadc[[i]]
-  comp_wscmd[[names(STA_wscmdc)[i]]] <- STA_wscmdc[[i]]
-  comp_wscmd[[names(WPS_wscmdc)[i]]] <- WPS_wscmdc[[i]]
   comp_wschmd[[names(STA_wschmdc)[i]]] <- STA_wschmdc[[i]]
   comp_wschmd[[names(WPS_wschmdc)[i]]] <- WPS_wschmdc[[i]]
 }
 
-save(comp_wsmad,comp_wscmd,comp_wschmd,file=paste0(dirresults,"/comp_wsc.RData"))
+save(comp_wsmad,comp_wschmd,file=paste0(dirresults,"/comp_wsc.RData"))
 
 
 
 ##### analyse results for Brazil, subsystems, states and wind parks #####
 stats_wsma <- NULL
-stats_wscm <- NULL
 stats_wschm <- NULL
 types <- data.frame(region=names(comp_wsmad),type=c("Brazil+Subs",rep("Brazil+Subs",2),rep(c("State","Windpark"),7)))
 for(i in c(1:length(comp_wsmad))){
@@ -1704,14 +1660,6 @@ for(i in c(1:length(comp_wsmad))){
                      mean = mean(comp_wsmad[[i]]$sim),
                      obs = mean(comp_wsmad[[i]]$obs))
   stats_wsma <- rbind(stats_wsma,stat)
-  stat <- data.frame(region = names(comp_wscmd)[i],
-                     area = types$type[which(names(comp_wscmd)[i]==types$region)],
-                     cor = cor(comp_wscmd[[i]]$sim,comp_wscmd[[i]]$obs),
-                     RMSE = rmse(comp_wscmd[[i]]$sim,comp_wscmd[[i]]$obs),
-                     MBE = mean(comp_wscmd[[i]]$sim-comp_wscmd[[i]]$obs),
-                     mean = mean(comp_wscmd[[i]]$sim),
-                     obs = mean(comp_wscmd[[i]]$obs))
-  stats_wscm <- rbind(stats_wscm,stat)
   stat <- data.frame(region = names(comp_wschmd)[i],
                      area = types$type[which(names(comp_wschmd)[i]==types$region)],
                      cor = cor(comp_wschmd[[i]]$sim,comp_wschmd[[i]]$obs),
@@ -1722,7 +1670,7 @@ for(i in c(1:length(comp_wsmad))){
   stats_wschm <- rbind(stats_wschm,stat)
 }
 
-stats <- rbind(data.frame(stats_wsma,int="wsma"),data.frame(stats_wscm,int="wsc_m"),data.frame(stats_wschm,int="wsc_hm"))
+stats <- rbind(data.frame(stats_wsma,int="wsma"),data.frame(stats_wschm,int="wsc_hm"))
 
 # prepare stats for table
 stats_tidy <- gather(stats,key="type",value="val",-region,-area,-int)
@@ -1730,7 +1678,7 @@ stats_tidy <- gather(stats,key="type",value="val",-region,-area,-int)
 save(stats,stats_tidy,file=paste0(dirresults,"/stats_wsc.RData"))
 
 par <- rep(c("cor","RMSE","MBE","mean"),each=3)
-sim <- c("wsma_","wsc_m_","wsc_hm_")
+sim <- c("wsma_","wsc_m_")
 vars <- c("region", paste0(sim,par),"wsma_obs")
 stats_table <- stats_tidy %>% 
   mutate(val=round(val,3)) %>%
@@ -1754,7 +1702,7 @@ names <- data.frame(old = as.vector(c("Northeast", "Macaubas",   "Praia Formosa"
                     new = as.vector(c("North-East","BA-Macaubas","CE-PraiaFormosa","PE-SaoClemente","PI-Araripe","RN-AlegriaII","RS-ElebrasCidreira1","SC-BomJardim","RioGrandedoNorte",   "RioGrandedoSul",   "SantaCatarina")),stringsAsFactors = FALSE)
 tab$region[match(names$old,tab$region)] <- names$new
 
-stats_r <- subset(stats,select=-c(mean,obs))
+stats_r <- subset(stats,select=-c(mean,mean,obs))
 stats_r$RMSE <- stats$RMSE/(tab$mean_cap_MW[match(stats$region,tab$region)]/1000*24) #/1000 MW->GW, *24 24 hours of day
 stats_r$MBE <- stats$MBE/(tab$mean_cap_MW[match(stats$region,tab$region)]/1000*24) #/1000 MW->GW, *24 24 hours of day
 
@@ -1764,18 +1712,18 @@ stats_r$MBE <- stats$MBE/(tab$mean_cap_MW[match(stats$region,tab$region)]/1000*2
 # Brazil
 # merge all data to a tibble
 reg <- "Brazil"
-dat <- melt(data.frame(wsma=comp_wsmad[[reg]][,3]-comp_wsmad[[reg]][,2],wsc_m=comp_wscmd[[reg]][,3]-comp_wsmad[[reg]][,2],wsc_hm=comp_wschmd[[reg]][,3]-comp_wsmad[[reg]][,2]))
+dat <- melt(data.frame(wsma=comp_wsmad[[reg]][,3]-comp_wsmad[[reg]][,2],wsc_hm=comp_wschmd[[reg]][,3]-comp_wsmad[[reg]][,2]))
 ggplot(data=dat,aes(x=variable,y=value)) +
   geom_boxplot() +
   xlab("Wind speed correction method") +
   scale_y_continuous(name="Differences in daily wind power generation [GWh]") +
-  ggsave(paste(dirims,"/diff_B_wsc.png",sep=""), width = 6, height = 4.125)
+  ggsave(paste(dirims,"/diff_B_wsc.png",sep=""), width = 5, height = 4.125)
 # Subsystems
 dat <- NULL
 reg <- c("North-East","South")
 for(i in reg){
   # merge all data to a tibble
-  dat1 <- melt(data.frame(wsma=comp_wsmad[[i]][,3]-comp_wsmad[[i]][,2],wsc_m=comp_wscmd[[i]][,3]-comp_wsmad[[i]][,2],wsc_hm=comp_wschmd[[i]][,3]-comp_wsmad[[i]][,2]))
+  dat1 <- melt(data.frame(wsma=comp_wsmad[[i]][,3]-comp_wsmad[[i]][,2],wsc_hm=comp_wschmd[[i]][,3]-comp_wsmad[[i]][,2]))
   dat1 <- data.frame(subsystem=i,dat1)
   if(length(dat)>1){
     dat <- rbind(dat,dat1)
@@ -1788,12 +1736,12 @@ ggplot(data=dat,aes(x=variable,y=value)) +
   facet_wrap(~subsystem) +
   xlab("Wind speed correction method") +
   scale_y_continuous(name="Differences in daily wind power generation [GWh]") +
-  ggsave(paste(dirims,"/diff_SUB_wsc.png",sep=""), width = 6, height = 4.125)
+  ggsave(paste(dirims,"/diff_SUB_wsc.png",sep=""), width = 5, height = 4.125)
 # States
 dat <- NULL
-for(i in names(STA_wsmadc)){
+for(i in c("Bahia","Ceará","Pernambuco","Piaui","RioGrandedoNorte","RioGrandedoSul","SantaCatarina")){
   # merge all data to a tibble
-  dat1 <- melt(data.frame(wsma=comp_wsmad[[i]][,3]-comp_wsmad[[i]][,2],wsc_m=comp_wscmd[[i]][,3]-comp_wsmad[[i]][,2],wsc_hm=comp_wschmd[[i]][,3]-comp_wsmad[[i]][,2]))
+  dat1 <- melt(data.frame(wsma=comp_wsmad[[i]][,3]-comp_wsmad[[i]][,2],wsc_hm=comp_wschmd[[i]][,3]-comp_wsmad[[i]][,2]))
   dat1 <- data.frame(state=i,dat1)
   if(length(dat)>1){
     dat <- rbind(dat,dat1)
@@ -1806,12 +1754,12 @@ ggplot(data=dat,aes(x=variable,y=value)) +
   facet_wrap(~state,nrow=2) +
   xlab("Wind speed correction method") +
   scale_y_continuous(name="Differences in daily wind power generation [GWh]") +
-  ggsave(paste(dirims,"/diff_STATE_wsc.png",sep=""), width = 9, height = 4.125)
+  ggsave(paste(dirims,"/diff_STATE_wsc.png",sep=""), width = 7.5, height = 4.125)
 # Wind power plants
 dat <- NULL
-for(i in names(WPS_wsmad)){
+for(i in c("BA-Macaubas","CE-PraiaFormosa","PE-SaoClemente","PI-Araripe","RN-AlegriaII","RS-ElebrasCidreira1","SC-BomJardim")){
   # merge all data to a tibble
-  dat1 <- melt(data.frame(wsma=comp_wsmad[[i]][,3]-comp_wsmad[[i]][,2],wsc_m=comp_wscmd[[i]][,3]-comp_wsmad[[i]][,2],wsc_hm=comp_wschmd[[i]][,3]-comp_wsmad[[i]][,2]))
+  dat1 <- melt(data.frame(wsma=comp_wsmad[[i]][,3]-comp_wsmad[[i]][,2],wsc_hm=comp_wschmd[[i]][,3]-comp_wsmad[[i]][,2]))
   dat1 <- data.frame(state=i,dat1)
   if(length(dat)>1){
     dat <- rbind(dat,dat1)
@@ -1824,18 +1772,18 @@ ggplot(data=dat,aes(x=variable,y=value)) +
   facet_wrap(~state,nrow=2) +
   xlab("Wind speed correction method") +
   scale_y_continuous(name="Differences in daily wind power generation [GWh]") +
-  ggsave(paste(dirims,"/diff_stat_wsc.png",sep=""), width = 9, height = 4.125)
+  ggsave(paste(dirims,"/diff_stat_wsc.png",sep=""), width = 7.5, height = 4.125)
 
 
 
 ##### plot statistical analysis #####
 # width and height of images
-w = 3.375
+w = 2.8125
 h = 5
 # rows in legend
 rw = 4
 # find out which areas have been corrected with INMET
-change <-  c(rep(FALSE,17),rep(filter(stats_r,int=="wsma")$RMSE,2)==filter(stats_r,int %in% c("wsc_m","wsc_hm"))$RMSE)
+change <-  c(rep(FALSE,17),filter(stats_r,int=="wsma")$RMSE==filter(stats_r,int=="wsc_hm")$RMSE)
 
 # set special settings for those
 stats_r$size <- 3
@@ -1959,26 +1907,19 @@ save(statpowlist,file=paste0(dirresults,"/statpowlist_wscm_WPallc.RData")) # wsc
 ##### prepare results for wind parks #####
 load(paste(dirresults,"/statpowlist_wschm_WPallc.RData",sep=""))
 statpowlist_wschm_ac <- statpowlist
-load(paste(dirresults,"/statpowlist_wscm_WPallc.RData",sep=""))
-statpowlist_wscm_ac <- statpowlist
 rm(statpowlist)
 
 # aggregate per wind parks
-WPS_wscm_ac <- makeWPpowlist(statpowlist_wscm_ac)
 WPS_wschm_ac <- makeWPpowlist(statpowlist_wschm_ac)
 
 # aggregate daily
-WPS_wscmd_ac <- dailyaggregate(WPS_wscm_ac)
-names(WPS_wscmd_ac) <- names(WPS_wscm_ac)
 WPS_wschmd_ac <- dailyaggregate(WPS_wschm_ac)
 names(WPS_wschmd_ac) <- names(WPS_wschm_ac)
 
 
 # cut to same lengths
-WPS_wscmdc_ac <- list()
 WPS_wschmdc_ac <- list()
 for(wps in names(WPS_wsmad)){
-  WPS_wscmdc_ac[[wps]] <- csl(prodWPS[[wps]],WPS_wscmd_ac[[wps]])
   WPS_wschmdc_ac[[wps]] <- csl(prodWPS[[wps]],WPS_wschmd_ac[[wps]])
 }
 
@@ -1987,47 +1928,33 @@ load(paste(dircaps,"/cap_cfs.RData",sep=""))
 # apply capacity correction factors and kWh -> GWh
 # of stations last two are in S, others in NE
 for(i in c(1:(length(WPS_wsmadc)-2))){
-  WPS_wscmdc_ac[[i]][,3] <- WPS_wscmdc_ac[[i]][,3]*cfNE/10^6
   WPS_wschmdc_ac[[i]][,3] <- WPS_wschmdc_ac[[i]][,3]*cfNE/10^6
 }
 for(i in c((length(WPS_wsmadc)-1):length(WPS_wsmadc))){
-  WPS_wscmdc_ac[[i]][,3] <- WPS_wscmdc_ac[[i]][,3]*cfS/10^6
   WPS_wschmdc_ac[[i]][,3] <- WPS_wschmdc_ac[[i]][,3]*cfS/10^6
 }
 # name columns
 for(i in c(1:7)){
-  names(WPS_wscmdc_ac[[i]]) <- c("time","obs","sim")
   names(WPS_wschmdc_ac[[i]]) <- c("time","obs","sim")
 }
 
 
 # put all in one list
-comp_wscmd_ac <- comp_wscmd
 comp_wschmd_ac <- comp_wschmd
 for(i in c(1:7)){
-  comp_wscmd_ac[[names(WPS_wscmdc_ac)[i]]] <- WPS_wscmdc_ac[[i]]
   comp_wschmd_ac[[names(WPS_wschmdc_ac)[i]]] <- WPS_wschmdc_ac[[i]]
 }
 
-save(comp_wsmad,comp_wscmd_ac,comp_wschmd_ac,file=paste0(dirresults,"/comp_wsc_WPallc.RData"))
+save(comp_wsmad,comp_wschmd_ac,file=paste0(dirresults,"/comp_wsc_WPallc.RData"))
 
 
 
 
 ##### analyse results for wind parks #####
 types <- data.frame(region=names(comp_wsmad),type=c("Brazil+Subs",rep("Brazil+Subs",2),rep(c("State","Windpark"),7)))
-stats_wscm_ac <- list()
 stats_wschm_ac <- list()
 for(i in c(1:length(comp_wsmad))){
-  
-  stat <- data.frame(region = names(comp_wscmd_ac)[i],
-                     area = types$type[which(names(comp_wscmd_ac)[i]==types$region)],
-                     cor = cor(comp_wscmd_ac[[i]]$sim,comp_wscmd_ac[[i]]$obs),
-                     RMSE = rmse(comp_wscmd_ac[[i]]$sim,comp_wscmd_ac[[i]]$obs),
-                     MBE = mean(comp_wscmd_ac[[i]]$sim-comp_wscmd_ac[[i]]$obs),
-                     mean = mean(comp_wscmd_ac[[i]]$sim),
-                     obs = mean(comp_wscmd_ac[[i]]$obs))
-  stats_wscm_ac <- rbind(stats_wscm_ac,stat)
+
   stat <- data.frame(region = names(comp_wschmd_ac)[i],
                      area = types$type[which(names(comp_wschmd_ac)[i]==types$region)],
                      cor = cor(comp_wschmd_ac[[i]]$sim,comp_wschmd_ac[[i]]$obs),
@@ -2038,7 +1965,7 @@ for(i in c(1:length(comp_wsmad))){
   stats_wschm_ac <- rbind(stats_wschm_ac,stat)
 }
 
-stats_ac <- rbind(data.frame(stats_wsma,int="wsma"),data.frame(stats_wscm_ac,int="wsc_m"),data.frame(stats_wschm_ac,int="wsc_hm"))
+stats_ac <- rbind(data.frame(stats_wsma,int="wsma"),data.frame(stats_wschm_ac,int="wsc_hm"))
 
 # prepare stats for table
 stats_tidy_ac <- gather(stats_ac,key="type",value="val",-region,-area,-int)
@@ -2046,7 +1973,7 @@ stats_tidy_ac <- gather(stats_ac,key="type",value="val",-region,-area,-int)
 save(stats_ac,stats_tidy_ac,file=paste0(dirresults,"/stats_wsc_WPallc.RData"))
 
 par <- rep(c("cor","RMSE","MBE","mean"),each=3)
-sim <- c("wsma_","wsc_m_","wsc_hm_")
+sim <- c("wsma_","wsc_hm_")
 vars <- c("region", paste0(sim,par),"wsma_obs")
 stats_table_ac <- stats_tidy_ac %>% 
   mutate(val=round(val,3)) %>%
@@ -2078,9 +2005,9 @@ stats_r_ac$MBE <- stats_ac$MBE/(tab$mean_cap_MW[match(stats_ac$region,tab$region
 ##### plot differences for wind parks #####
 # Wind power plants
 dat <- NULL
-for(i in names(WPS_wsmadc)){
+for(i in c("BA-Macaubas","CE-PraiaFormosa","PE-SaoClemente","PI-Araripe","RN-AlegriaII","RS-ElebrasCidreira1","SC-BomJardim")){
   # merge all data to a tibble
-  dat1 <- melt(data.frame(wsma=comp_wsmad[[i]][,3]-comp_wsmad[[i]][,2],wsc_m=comp_wscmd_ac[[i]][,3]-comp_wsmad[[i]][,2],wsc_hm=comp_wschmd_ac[[i]][,3]-comp_wsmad[[i]][,2]))
+  dat1 <- melt(data.frame(wsma=comp_wsmad[[i]][,3]-comp_wsmad[[i]][,2],wsc_hm=comp_wschmd_ac[[i]][,3]-comp_wsmad[[i]][,2]))
   dat1 <- data.frame(state=i,dat1)
   if(length(dat)>1){
     dat <- rbind(dat,dat1)
@@ -2093,17 +2020,17 @@ ggplot(data=dat,aes(x=variable,y=value)) +
   facet_wrap(~state,nrow=2) +
   xlab("Wind speed correction method") +
   scale_y_continuous(name="Differences in daily wind power generation [GWh]") +
-  ggsave(paste(dirims,"/diff_stat_wsc_WPallc.png",sep=""), width = 9, height = 4.125)
+  ggsave(paste(dirims,"/diff_stat_wsc_WPallc.png",sep=""), width = 7.5, height = 4.125)
 
 
 ##### plot statistical analysis #####
 # width and height of images
-w = 3.375
+w = 2.8125
 h = 5
 # rows in legend
 rw = 4
 # find out which areas have been corrected with INMET
-change_ac <-  c(rep(FALSE,17),rep(filter(stats_r_ac,int=="wsma")$RMSE,2)==filter(stats_r_ac,int %in% c("wsc_m","wsc_hm"))$RMSE)
+change_ac <-  c(rep(FALSE,17),filter(stats_r_ac,int=="wsma")$RMSE==filter(stats_r_ac,int=="wsc_hm")$RMSE)
 
 # set special settings for those
 stats_r_ac$size <- 3
