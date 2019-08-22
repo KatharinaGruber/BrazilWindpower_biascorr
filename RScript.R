@@ -38,11 +38,13 @@ dirwindatlas <- "C:/..."
 dircaps <- "C:/..."
 # directory where results with capacity correction are stored
 dirresultscapc <- "C:/..."
+# directory for source code
+dirsource <- "C:/..."
 
 # load script for handling merra data
-source("C:/.../MERRA_data.R")
+source(paste0(dirsource,"/MERRA_data.R"))
 # load functions
-source("C:/.../functions.R")
+source(paste0(dirsource,"/functions.R"))
 
 
 
@@ -874,7 +876,7 @@ ggplot(data=dat,aes(x=variable,y=value)) +
   geom_boxplot() +
   xlab("Interpolation method") +
   scale_y_continuous(name="Differences in daily wind power generation [GWh]") +
-  ggsave(paste(dirims,"/diff_B_noc.png",sep=""), width = 6, height = 4.125)
+  ggsave(paste(dirims,"/diff_B_noc.jpg",sep=""), width = 6, height = 4.125,dpi=1000)
 # Subsystems
 dat <- NULL
 reg <- c("North-East","South")
@@ -893,7 +895,7 @@ ggplot(data=dat,aes(x=variable,y=value)) +
   facet_wrap(~subsystem) +
   xlab("Interpolation method") +
   scale_y_continuous(name="Differences in daily wind power generation [GWh]") +
-  ggsave(paste(dirims,"/diff_SUB_noc.png",sep=""), width = 6, height = 4.125)
+  ggsave(paste(dirims,"/diff_SUB_noc.jpg",sep=""), width = 6, height = 4.125,dpi=1000)
 # States
 dat <- NULL
 for(i in names(STA_NNdc)){
@@ -911,7 +913,7 @@ ggplot(data=dat,aes(x=variable,y=value)) +
   facet_wrap(~state) +
   xlab("Interpolation method") +
   scale_y_continuous(name="Differences in daily wind power generation [GWh]") +
-  ggsave(paste(dirims,"/diff_STATE_noc.png",sep=""), width = 8, height = 8.25)
+  ggsave(paste(dirims,"/diff_STATE_noc.jpg",sep=""), width = 8, height = 8.25,dpi=1000)
 # Wind power plants
 dat <- NULL
 for(i in names(WPS_NNd)){
@@ -929,7 +931,7 @@ ggplot(data=dat,aes(x=variable,y=value)) +
   facet_wrap(~state,nrow=2) +
   xlab("Interpolation method") +
   scale_y_continuous(name="Differences in daily wind power generation [GWh]") +
-  ggsave(paste(dirims,"/diff_stat_noc.png",sep=""), width = 9, height = 4.125)
+  ggsave(paste(dirims,"/diff_stat_noc.jpg",sep=""), width = 9, height = 4.125,dpi=1000)
 
 
 
@@ -968,7 +970,7 @@ for(i in 1:3){
   }
 }
 cowplot::plot_grid(plotlist = plist, nrow=1, align="h")
-ggsave(paste0(dirresults,"/pointplots/cor_noc.png"), width = w*2.9, height = h)
+ggsave(paste0(dirresults,"/pointplots/cor_noc.jpg"), width = w*2.9, height = h,dpi=1000)
 
 
 ### RMSES
@@ -977,7 +979,7 @@ yl <- c("Daily relative RMSE","","")
 for(i in 1:3){
   plot <- 
     ggplot(data=stats_rl[[i]], aes(x=int,y=RMSE,group=int,color=region)) +
-      coord_cartesian(ylim=c(0.1,0.35)) +
+      coord_cartesian(ylim=c(0.05,0.325)) +
       scale_colour_manual(values=col[[i]]) +
       theme(legend.position = "bottom", axis.text.y = ys[[i]], plot.margin=margin(l=mar[i],unit="cm")) +
       guides(color=guide_legend(nrow=rw,title="")) +
@@ -993,7 +995,7 @@ for(i in 1:3){
   }
 }
 cowplot::plot_grid(plotlist = plist, nrow=1, align="h")
-ggsave(paste0(dirresults,"/pointplots/RMSE_noc.png"), width = w*3, height = h)
+ggsave(paste0(dirresults,"/pointplots/RMSE_noc.jpg"), width = w*3, height = h,dpi=1000)
 
 
 
@@ -1020,10 +1022,10 @@ rad <- pi/180
 ##### INMET #####
 # determining factor whether mean approximation is carried out:
 # limit for max distance to INMET station: 40 km
-statpowlist <- calcstatpower_meanAPT(method=1,wscdata="INMET",INMAXDIST=40)
+statpowlist <- calcstatpower_meanAPT(method=1,wscdata="INMET",INmaxdist=40)
 save(statpowlist,cfs_mean,file=paste0(dirresults,"/statpowlist_wsmaIN.RData")) # wsmaIN = wind speed mean approximation with INMET data
 # also calculate with always applying correction for wind parks, disregarding limit of 40 km; but keep for other stations
-statpowlist <- calcstatpower_meanAPT(method=1,wscdata="INMET",INMAXDIST=40,applylim=0)
+statpowlist <- calcstatpower_meanAPT(method=1,wscdata="INMET",INmaxdist=40,applylim=0)
 save(statpowlist,cfs_mean,file=paste0(dirresults,"/statpowlist_wsmaIN_allc.RData"))
 
 
@@ -1275,7 +1277,7 @@ write.table(stats_table,file=paste(dirresults,"/stats_wsma.csv",sep=""),sep=";")
 
 
 ##### relative results #####
-
+load(paste0(dirresults,"/stats_wsma.RData"))
 load(paste0(dirbase,"/table_mean_caps_validation.RData"))
 tab$region <- as.vector(tab$region)
 # adapt names of regions
@@ -1298,7 +1300,7 @@ ggplot(data=dat,aes(x=variable,y=value)) +
   geom_boxplot() +
   xlab("Wind speed mean approximation source") +
   scale_y_continuous(name="Differences in daily wind power generation [GWh]") +
-  ggsave(paste(dirims,"/diff_B_wsma.png",sep=""), width = 6, height = 4.125)
+  ggsave(paste(dirims,"/diff_B_wsma.jpg",sep=""), width = 6, height = 4.125,dpi=1000)
 # Subsystems
 dat <- NULL
 reg <- c("North-East","South")
@@ -1317,7 +1319,7 @@ ggplot(data=dat,aes(x=variable,y=value)) +
   facet_wrap(~subsystem) +
   xlab("Wind speed mean approximation source") +
   scale_y_continuous(name="Differences in daily wind power generation [GWh]") +
-  ggsave(paste(dirims,"/diff_SUB_wsma.png",sep=""), width = 6, height = 4.125)
+  ggsave(paste(dirims,"/diff_SUB_wsma.jpg",sep=""), width = 6, height = 4.125,dpi=1000)
 # States
 dat <- NULL
 for(i in names(STA_NNdc)){
@@ -1335,7 +1337,7 @@ ggplot(data=dat,aes(x=variable,y=value)) +
   facet_wrap(~state,nrow=2) +
   xlab("Wind speed mean approximation source") +
   scale_y_continuous(name="Differences in daily wind power generation [GWh]") +
-  ggsave(paste(dirims,"/diff_STATE_wsma.png",sep=""), width = 9, height = 4.125)
+  ggsave(paste(dirims,"/diff_STATE_wsma.jpg",sep=""), width = 9, height = 4.125,dpi=1000)
 # Wind power plants
 dat <- NULL
 for(i in names(WPS_NNd)){
@@ -1353,7 +1355,7 @@ ggplot(data=dat,aes(x=variable,y=value)) +
   facet_wrap(~state,nrow=2) +
   xlab("Wind speed mean approximation source") +
   scale_y_continuous(name="Differences in daily wind power generation [GWh]") +
-  ggsave(paste(dirims,"/diff_stat_wsma.png",sep=""), width = 9, height = 4.125)
+  ggsave(paste(dirims,"/diff_stat_wsma.jpg",sep=""), width = 9, height = 4.125,dpi=1000)
 
 
 
@@ -1402,7 +1404,7 @@ for(i in 1:3){
   }
 }
 cowplot::plot_grid(plotlist = plist, nrow=1, align="h")
-ggsave(paste0(dirresults,"/pointplots/cor_wsma.png"), width = w*2.9, height = h)
+ggsave(paste0(dirresults,"/pointplots/cor_wsma.jpg"), width = w*2.9, height = h,dpi=1000)
 
 
 ### RMSES
@@ -1427,7 +1429,7 @@ for(i in 1:3){
   }
 }
 cowplot::plot_grid(plotlist = plist, nrow=1, align="h")
-ggsave(paste0(dirresults,"/pointplots/RMSE_wsma.png"), width = w*2.9, height = h)
+ggsave(paste0(dirresults,"/pointplots/RMSE_wsma.jpg"), width = w*2.9, height = h,dpi=1000)
 
 
 ### MBEs
@@ -1452,7 +1454,7 @@ for(i in 1:3){
   }
 }
 cowplot::plot_grid(plotlist = plist, nrow=1, align="h")
-ggsave(paste0(dirresults,"/pointplots/MBE_wsma.png"), width = w*2.9, height = h)
+ggsave(paste0(dirresults,"/pointplots/MBE_wsma.jpg"), width = w*2.9, height = h,dpi=1000)
 
 
 
@@ -1478,6 +1480,9 @@ mindaynum = 30
 monthlim = 1
 # how many days does a month need to be long enough that its data are respected?
 shortmonths = 10
+
+
+
 remove_months(minmonth,mindaynum,monthlim,shortmonths,rmrows=1)
 
 # calculate correction factors
@@ -1485,6 +1490,9 @@ LonLat <- read_feather(paste(dirmerra,"/lonlat.feather",sep=""))
 date.start <- as.POSIXct("1999-01-01",tz="UTC")
 rad <- pi/180
 hubheight <- 10
+
+
+
 calccfs_r()
 
 save(cfhm_r,cfm_r,corhm_r,corm_r,file=paste(dirresults,"/cfscors_r.RData",sep=""))
@@ -1494,7 +1502,7 @@ save(cfhm_r,cfm_r,corhm_r,corm_r,file=paste(dirresults,"/cfscors_r.RData",sep=""
 # determining factor whether wind speed correction is carried out:
 # limit for max distance to INMET station: 40 km
 # calculate wind power generation with wind speed correction
-
+date.start <- as.POSIXct("2006-01-01",tz="UTC")
 # hourly and monthly
 statpowlist <- calcstatpower_windcor(INmaxdist=40,corrlimit=0.5,method=1,mhm="hm",applylim=1)
 save(statpowlist,file=paste0(dirresults,"/statpowlist_wschm.RData")) # wschm = wind speed correction hourly and monthly
@@ -1677,8 +1685,8 @@ stats_tidy <- gather(stats,key="type",value="val",-region,-area,-int)
 
 save(stats,stats_tidy,file=paste0(dirresults,"/stats_wsc.RData"))
 
-par <- rep(c("cor","RMSE","MBE","mean"),each=3)
-sim <- c("wsma_","wsc_m_")
+par <- rep(c("cor","RMSE","MBE","mean"),each=2)
+sim <- c("wsma_","wsc_hm_")
 vars <- c("region", paste0(sim,par),"wsma_obs")
 stats_table <- stats_tidy %>% 
   mutate(val=round(val,3)) %>%
@@ -1717,7 +1725,7 @@ ggplot(data=dat,aes(x=variable,y=value)) +
   geom_boxplot() +
   xlab("Wind speed correction method") +
   scale_y_continuous(name="Differences in daily wind power generation [GWh]") +
-  ggsave(paste(dirims,"/diff_B_wsc.png",sep=""), width = 5, height = 4.125)
+  ggsave(paste(dirims,"/diff_B_wsc.jpg",sep=""), width = 5, height = 4.125,dpi=1000)
 # Subsystems
 dat <- NULL
 reg <- c("North-East","South")
@@ -1736,7 +1744,7 @@ ggplot(data=dat,aes(x=variable,y=value)) +
   facet_wrap(~subsystem) +
   xlab("Wind speed correction method") +
   scale_y_continuous(name="Differences in daily wind power generation [GWh]") +
-  ggsave(paste(dirims,"/diff_SUB_wsc.png",sep=""), width = 5, height = 4.125)
+  ggsave(paste(dirims,"/diff_SUB_wsc.jpg",sep=""), width = 5, height = 4.125,dpi=1000)
 # States
 dat <- NULL
 for(i in c("Bahia","Ceará","Pernambuco","Piaui","RioGrandedoNorte","RioGrandedoSul","SantaCatarina")){
@@ -1754,7 +1762,7 @@ ggplot(data=dat,aes(x=variable,y=value)) +
   facet_wrap(~state,nrow=2) +
   xlab("Wind speed correction method") +
   scale_y_continuous(name="Differences in daily wind power generation [GWh]") +
-  ggsave(paste(dirims,"/diff_STATE_wsc.png",sep=""), width = 7.5, height = 4.125)
+  ggsave(paste(dirims,"/diff_STATE_wsc.jpg",sep=""), width = 7.5, height = 4.125,dpi=1000)
 # Wind power plants
 dat <- NULL
 for(i in c("BA-Macaubas","CE-PraiaFormosa","PE-SaoClemente","PI-Araripe","RN-AlegriaII","RS-ElebrasCidreira1","SC-BomJardim")){
@@ -1772,7 +1780,7 @@ ggplot(data=dat,aes(x=variable,y=value)) +
   facet_wrap(~state,nrow=2) +
   xlab("Wind speed correction method") +
   scale_y_continuous(name="Differences in daily wind power generation [GWh]") +
-  ggsave(paste(dirims,"/diff_stat_wsc.png",sep=""), width = 7.5, height = 4.125)
+  ggsave(paste(dirims,"/diff_stat_wsc.jpg",sep=""), width = 7.5, height = 4.125,dpi=1000)
 
 
 
@@ -1820,7 +1828,7 @@ for(i in 1:3){
   }
 }
 cowplot::plot_grid(plotlist = plist, nrow=1, align="h")
-ggsave(paste0(dirresults,"/pointplots/cor_wsc.png"), width = w*2.9, height = h)
+ggsave(paste0(dirresults,"/pointplots/cor_wsc.jpg"), width = w*2.9, height = h,dpi=1000)
 
 
 ### RMSES
@@ -1845,7 +1853,7 @@ for(i in 1:3){
   }
 }
 cowplot::plot_grid(plotlist = plist, nrow=1, align="h")
-ggsave(paste0(dirresults,"/pointplots/RMSE_wsc.png"), width = w*2.9, height = h)
+ggsave(paste0(dirresults,"/pointplots/RMSE_wsc.jpg"), width = w*2.9, height = h,dpi=1000)
 
 
 ### MBEs
@@ -1870,7 +1878,7 @@ for(i in 1:3){
   }
 }
 cowplot::plot_grid(plotlist = plist, nrow=1, align="h")
-ggsave(paste0(dirresults,"/pointplots/MBE_wsc.png"), width = w*2.9, height = h)
+ggsave(paste0(dirresults,"/pointplots/MBE_wsc.jpg"), width = w*2.9, height = h,dpi=1000)
 
 
 
