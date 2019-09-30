@@ -2,8 +2,8 @@
 
 These scripts contain the simulation and bias correction of wind power generation in Brazil from MERRA-2 reanalysis wind speed data with different interpolation and bias correction methods.
 More info can be found in the preprint "Assessing the Global Wind Atlas and local measurements for bias correction of wind power generation simulated from MERRA-2 in Brazil"
-Link: https://arxiv.org/abs/1904.13083
-doi.org/10.1016/j.energy.2019.116212
+Link arXiv: https://arxiv.org/abs/1904.13083
+Link Energy: https://doi.org/10.1016/j.energy.2019.116212
 
 Results are provided for download at https://zenodo.org/record/3460291
 
