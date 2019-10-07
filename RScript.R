@@ -40,6 +40,8 @@ dircaps <- "C:/..."
 dirresultscapc <- "C:/..."
 # directory for source code
 dirsource <- "C:/..."
+# directory where Ryberg coefficients are stored
+ryberg_path <- "C:/..."
 
 # load script for handling merra data
 source(paste0(dirsource,"/MERRA_data.R"))
