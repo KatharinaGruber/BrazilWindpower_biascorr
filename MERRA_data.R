@@ -189,3 +189,15 @@ getMerraPoint <- function(long,lat){
 }
 
 
+getFileMerraFinal<-function(i,fileNameIn,fileNameOut,user,pass){
+  print(fileNameIn[i])
+  print(fileNameOut[i])
+  if(!file.exists(fileNameOut[i])){
+    print(GET(fileNameIn[i],
+              authenticate(user,pass),
+              write_disk(fileNameOut[i],overwrite=TRUE)))
+  }else{
+    print("File exists already")
+  }
+  
+}
