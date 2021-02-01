@@ -104,12 +104,16 @@ source(paste0(dironsdownload,"/ONSDownload.R"))
 ##########################################################################################
 ##### DOWNLOAD INMET DATA ################################################################
 ##########################################################################################
+
+#### ATTENTION: the archive of measured wind speed data has been moved and this code will not work anymore
+#### new data can be downloaded here: https://portal.inmet.gov.br/dadoshistoricos
+
 # directory where stations_meta_data.csv is stored
 dirinmetmeta <- "C:/..."
 # directory where download function for inmet are stored
 dirinmetdownload <- "C:/..."
 # connection fails often, therefore try again until it works
-class(x) <- "try-error"
+x <- try(source(0),silent = TRUE)
 while(class(x)=="try-error"){
   x <- try(source(paste0(dirinmetdownload,"/INMETDownload.R")),silent = TRUE)
   stopCluster(cl)
