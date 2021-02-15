@@ -10,6 +10,10 @@ Results are provided for download at https://zenodo.org/record/3460291
 The file "RScript.R" contains the main code for simulation and analysis of simulated time series.
 In "MERRA_data.R" functions for the download of MERRA-2 reanalysis data are contained.
 "INMETDownload.R", "stations_meta_data.csv" and "ONSDownlaod.R" are scripts for downloading wind speed and wind power generation time series.
+  NOTE: The archive for this dataset ha moved, therefore the download script is out of date. A new dataset is available here: https://portal.inmet.gov.br/dadoshistoricos
 The ONS data were actually downloaded manually for use in this Script but part of the time series (since 2015) can be downloaded automatically.
 
 To run the code, first enter the paths at the beginning of the script.
+
+
+We gratefully acknowledge support from the European Research Council (“reFUEL” ERC2017-STG 758149).
